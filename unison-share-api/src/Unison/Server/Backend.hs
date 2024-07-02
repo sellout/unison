@@ -219,10 +219,10 @@ data BackendError
   = NoSuchNamespace Path.Absolute
   | -- Failed to parse path
     BadNamespace
+      -- | error message
       String
-      -- ^ error message
+      -- | namespace
       String
-      -- ^ namespace
   | CouldntExpandBranchHash ShortCausalHash
   | AmbiguousBranchHash ShortCausalHash (Set ShortCausalHash)
   | AmbiguousHashForDefinition ShortHash

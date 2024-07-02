@@ -66,11 +66,11 @@ newtype Transaction a
   -- Omit MonadThrow instance so we always throw SqliteException (via *Check) with lots of context
   deriving (Applicative, Functor, Monad) via (ReaderT Connection IO)
 
-instance Monoid a => Monoid (Transaction a) where
-  mempty :: Monoid a => Transaction a
+instance (Monoid a) => Monoid (Transaction a) where
+  mempty :: (Monoid a) => Transaction a
   mempty = pure mempty
 
-instance Semigroup a => Semigroup (Transaction a) where
+instance (Semigroup a) => Semigroup (Transaction a) where
   (<>) :: Transaction a -> Transaction a -> Transaction a
   (<>) = liftA2 (<>)
 

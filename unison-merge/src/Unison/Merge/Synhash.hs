@@ -107,7 +107,7 @@ hashConstructorNameToken declName conName =
             )
    in H.Text (Name.toText strippedConName)
 
-hashDerivedTerm :: Var v => PrettyPrintEnv -> Term v a -> Hash
+hashDerivedTerm :: (Var v) => PrettyPrintEnv -> Term v a -> Hash
 hashDerivedTerm ppe t =
   H.accumulate $ isNotBuiltinTag : isTermTag : hashTermTokens ppe t
 
@@ -116,7 +116,7 @@ hashConstructorType = \case
   CT.Effect -> H.Tag 0
   CT.Data -> H.Tag 1
 
-hashDataDeclTokens :: Var v => PrettyPrintEnv -> Name -> DataDeclaration v a -> [Token]
+hashDataDeclTokens :: (Var v) => PrettyPrintEnv -> Name -> DataDeclaration v a -> [Token]
 hashDataDeclTokens ppe declName (DD.DataDeclaration modifier _ vs ctors) =
   hashModifierTokens modifier <> goVs <> (ctors >>= hashConstructorTokens ppe declName)
   where
@@ -124,13 +124,13 @@ hashDataDeclTokens ppe declName (DD.DataDeclaration modifier _ vs ctors) =
       hashLengthToken vs : map hashVarToken vs
 
 -- separating constructor types with tag of 99, which isn't used elsewhere
-hashConstructorTokens :: Var v => PrettyPrintEnv -> Name -> (a, v, Type v a) -> [Token]
+hashConstructorTokens :: (Var v) => PrettyPrintEnv -> Name -> (a, v, Type v a) -> [Token]
 hashConstructorTokens ppe declName (_, conName, ty) =
   H.Tag 99
     : hashConstructorNameToken declName (Name.unsafeParseVar conName)
     : hashTypeTokens ppe ty
 
-hashDeclTokens :: Var v => PrettyPrintEnv -> Name -> Decl v a -> [Token]
+hashDeclTokens :: (Var v) => PrettyPrintEnv -> Name -> Decl v a -> [Token]
 hashDeclTokens ppe name decl =
   hashConstructorType (DD.constructorType decl) : hashDataDeclTokens ppe name (DD.asDataDecl decl)
 
@@ -138,7 +138,7 @@ hashDeclTokens ppe name decl =
 -- they they are the same sort of decl (both are data decls or both are effect decls), the unique type guid is the same,
 -- the constructors appear in the same order and have the same names, and the constructors' types have the same
 -- syntactic hashes.
-synhashDerivedDecl :: Var v => PrettyPrintEnv -> Name -> Decl v a -> Hash
+synhashDerivedDecl :: (Var v) => PrettyPrintEnv -> Name -> Decl v a -> Hash
 synhashDerivedDecl ppe name decl =
   H.accumulate $ isNotBuiltinTag : isDeclTag : hashDeclTokens ppe name decl
 
@@ -151,7 +151,7 @@ hashKindTokens k = case k of
   K.Star -> [H.Tag 0]
   K.Arrow k1 k2 -> H.Tag 1 : (hashKindTokens k1 <> hashKindTokens k2)
 
-hashLengthToken :: Foldable t => t a -> Token
+hashLengthToken :: (Foldable t) => t a -> Token
 hashLengthToken =
   H.Nat . fromIntegral @Int @Word64 . length
 
@@ -205,7 +205,7 @@ synhashTerm loadTerm ppe = \case
   ReferenceBuiltin builtin -> pure (hashBuiltinTerm builtin)
   ReferenceDerived ref -> hashDerivedTerm ppe <$> loadTerm ref
 
-hashTermTokens :: forall v a. Var v => PrettyPrintEnv -> Term v a -> [Token]
+hashTermTokens :: forall v a. (Var v) => PrettyPrintEnv -> Term v a -> [Token]
 hashTermTokens ppe =
   go
   where
@@ -218,7 +218,7 @@ hashTermTokens ppe =
         ABT.Cycle c -> H.Tag 2 : go c
         ABT.Abs v body -> H.Tag 3 : hashVarToken v : go body
 
-hashTermFTokens :: Var v => PrettyPrintEnv -> Term.F v a a () -> [Token]
+hashTermFTokens :: (Var v) => PrettyPrintEnv -> Term.F v a a () -> [Token]
 hashTermFTokens ppe = \case
   Term.Int n -> [H.Tag 0, H.Int n]
   Term.Nat n -> [H.Tag 1, H.Nat n]
@@ -249,11 +249,11 @@ hashTermFTokens ppe = \case
 -- | Syntactically hash a type, using reference names rather than hashes.
 -- Two types will have the same syntactic hash if they would
 -- print the the same way under the given pretty-print env.
-synhashType :: Var v => PrettyPrintEnv -> Type v a -> Hash
+synhashType :: (Var v) => PrettyPrintEnv -> Type v a -> Hash
 synhashType ppe t =
   H.accumulate $ hashTypeTokens ppe t
 
-hashTypeTokens :: forall v a. Var v => PrettyPrintEnv -> Type v a -> [Token]
+hashTypeTokens :: forall v a. (Var v) => PrettyPrintEnv -> Type v a -> [Token]
 hashTypeTokens ppe = go
   where
     go :: Type v a -> [Token]
@@ -280,6 +280,6 @@ hashTypeReferenceToken :: PrettyPrintEnv -> TypeReference -> Token
 hashTypeReferenceToken ppe =
   hashHQNameToken . PPE.typeNameOrHashOnlyFq ppe
 
-hashVarToken :: Var v => v -> Token
+hashVarToken :: (Var v) => v -> Token
 hashVarToken =
   H.Text . Var.name

@@ -1,8 +1,8 @@
 module Unison.LSP.UCMWorker where
 
 import Control.Monad (guard)
-import Control.Monad.State (liftIO)
 import Control.Monad.Reader.Class (ask)
+import Control.Monad.State (liftIO)
 import Data.Functor (void)
 import U.Codebase.HashTags
 import Unison.Codebase qualified as Codebase

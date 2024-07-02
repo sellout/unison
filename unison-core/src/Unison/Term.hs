@@ -1383,7 +1383,7 @@ containsExpression = ABT.containsExpression
 -- Used to find matches of `@rewrite case` rules
 -- Returns `Nothing` if `pat` can't be interpreted as a `Pattern`
 -- (like `1 + 1` is not a valid pattern, but `Some x` can be)
-containsCaseTerm :: Var v1 => Term2 tv ta tb v1 loc -> Term2 typeVar typeAnn loc v2 a -> Maybe Bool
+containsCaseTerm :: (Var v1) => Term2 tv ta tb v1 loc -> Term2 typeVar typeAnn loc v2 a -> Maybe Bool
 containsCaseTerm pat =
   (\tm -> containsCase <$> pat' <*> pure tm)
   where
@@ -1456,7 +1456,7 @@ rewriteCasesLHS pat0 pat0' =
         go t = t
 
 -- Implementation detail of `@rewrite case` rules (both find and replace)
-toPattern :: Var v => Term2 tv ta tb v loc -> Maybe (Pattern loc)
+toPattern :: (Var v) => Term2 tv ta tb v loc -> Maybe (Pattern loc)
 toPattern tm = case tm of
   Var' v | "_" `Text.isPrefixOf` Var.name v -> pure $ Pattern.Unbound loc
   Var' _ -> pure $ Pattern.Var loc
@@ -1484,7 +1484,7 @@ toPattern tm = case tm of
     loc = ABT.annotation tm
 
 -- Implementation detail of `@rewrite case` rules (both find and replace)
-matchCaseFromTerm :: Var v => Term2 typeVar typeAnn a v a -> Maybe (MatchCase a (Term2 typeVar typeAnn a v a))
+matchCaseFromTerm :: (Var v) => Term2 typeVar typeAnn a v a -> Maybe (MatchCase a (Term2 typeVar typeAnn a v a))
 matchCaseFromTerm (App' (Builtin' "#case") (ABT.unabsA -> (_, Apps' _ci [pat, guard, body]))) = do
   p <- toPattern pat
   let g = unguard guard

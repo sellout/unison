@@ -85,6 +85,7 @@ import Unison.Merge.EitherWay (EitherWay (..))
 import Unison.Merge.EitherWayI (EitherWayI (..))
 import Unison.Merge.EitherWayI qualified as EitherWayI
 import Unison.Merge.Libdeps qualified as Merge
+import Unison.Merge.PartialDeclNameLookup (PartialDeclNameLookup)
 import Unison.Merge.PartitionCombinedDiffs (partitionCombinedDiffs)
 import Unison.Merge.Synhashed (Synhashed (..))
 import Unison.Merge.Synhashed qualified as Synhashed
@@ -138,7 +139,6 @@ import Unison.Util.SyntaxText (SyntaxText')
 import Unison.Var (Var)
 import Witch (unsafeFrom)
 import Prelude hiding (unzip, zip, zipWith)
-import Unison.Merge.PartialDeclNameLookup (PartialDeclNameLookup)
 
 handleMerge :: ProjectAndBranch (Maybe ProjectName) ProjectBranchName -> Cli ()
 handleMerge (ProjectAndBranch maybeBobProjectName bobBranchName) = do

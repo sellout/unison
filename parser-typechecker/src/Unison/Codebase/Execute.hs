@@ -6,7 +6,7 @@
 module Unison.Codebase.Execute where
 
 import Control.Exception (finally)
-import Control.Monad.Except (throwError, runExceptT)
+import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Unison.Codebase qualified as Codebase
 import Unison.Codebase.Branch qualified as Branch

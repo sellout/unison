@@ -51,10 +51,10 @@ instance ToJSON Current where
         "path" .= path
       ]
 
-serveCurrent :: MonadIO m => Codebase m v a -> Backend m Current
+serveCurrent :: (MonadIO m) => Codebase m v a -> Backend m Current
 serveCurrent = lift . getCurrentProjectBranch
 
-getCurrentProjectBranch :: MonadIO m => Codebase m v a -> m Current
+getCurrentProjectBranch :: (MonadIO m) => Codebase m v a -> m Current
 getCurrentProjectBranch codebase = do
   segments <- Codebase.runTransaction codebase Queries.expectMostRecentNamespace
   let absolutePath = toPath segments

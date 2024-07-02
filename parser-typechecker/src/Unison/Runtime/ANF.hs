@@ -1985,7 +1985,7 @@ blitLinks :: (Monoid a) => (Bool -> Reference -> a) -> BLit -> a
 blitLinks f (List s) = foldMap (valueLinks f) s
 blitLinks _ _ = mempty
 
-groupTermLinks :: Var v => SuperGroup v -> [Reference]
+groupTermLinks :: (Var v) => SuperGroup v -> [Reference]
 groupTermLinks = Set.toList . foldGroupLinks f
   where
     f False r = Set.singleton r

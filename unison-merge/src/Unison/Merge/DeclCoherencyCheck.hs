@@ -132,7 +132,7 @@ data IncoherentDeclReason
 
 checkDeclCoherency ::
   forall m.
-  Monad m =>
+  (Monad m) =>
   (TypeReferenceId -> m Int) ->
   Nametree (DefnsF (Map NameSegment) Referent TypeReference) ->
   m (Either IncoherentDeclReason DeclNameLookup)
@@ -226,7 +226,7 @@ checkDeclCoherency loadDeclNumConstructors =
 -- does, we still need to compute *some* syntactic hash for its decls.
 lenientCheckDeclCoherency ::
   forall m.
-  Monad m =>
+  (Monad m) =>
   (TypeReferenceId -> m Int) ->
   Nametree (DefnsF (Map NameSegment) Referent TypeReference) ->
   m PartialDeclNameLookup
@@ -327,7 +327,7 @@ emptyConstructorNames :: Int -> ConstructorNames
 emptyConstructorNames numConstructors =
   IntMap.fromAscList [(i, Nothing) | i <- [0 .. numConstructors - 1]]
 
-recordConstructorName :: HasCallStack => ConstructorId -> Name -> ConstructorNames -> Either Name ConstructorNames
+recordConstructorName :: (HasCallStack) => ConstructorId -> Name -> ConstructorNames -> Either Name ConstructorNames
 recordConstructorName conId conName =
   IntMap.alterF f (fromIntegral @Word64 @Int conId)
   where
