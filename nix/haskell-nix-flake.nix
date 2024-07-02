@@ -39,12 +39,9 @@
                 '';
               }
             ];
-            # specify flags via project file rather than a module override
-            # https://github.com/input-output-hk/haskell.nix/issues/1509
-            cabalProject = ''
-              packages: .
-              package haskell-language-server
-                flags: -brittany -fourmolu -stylishhaskell -hlint
+            # Can’t use a module for this, because they are applied after the plan is constructed. See
+            # input-output-hk/haskell.nix#1509.
+            cabalProjectLocal = ''
               constraints: ormolu == ${versions.ormolu}
             '';
           };

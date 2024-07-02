@@ -27,7 +27,7 @@
     ]
     (system: let
       versions = {
-        ormolu = "0.7.2.0";
+        ormolu = "0.6.0.1";
         hls = "2.8.0.0";
         stack = "2.15.7";
         hpack = "0.35.2";
