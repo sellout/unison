@@ -29,6 +29,7 @@ dependencies:
   - jwt
   - lens
   - lucid
+  - megaparsec
   - memory
   - mtl
   - mwc-random

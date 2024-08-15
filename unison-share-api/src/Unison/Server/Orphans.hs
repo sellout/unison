@@ -14,6 +14,7 @@ import Data.Proxy
 import Data.Text qualified as Text
 import Servant
 import Servant.Docs (DocCapture (DocCapture), DocQueryParam (..), ParamKind (..), ToCapture (..), ToParam (..))
+import Text.Megaparsec qualified as Megaparsec
 import U.Codebase.HashTags
 import Unison.Codebase.Editor.DisplayObject
 import Unison.Codebase.Path qualified as Path
@@ -388,7 +389,7 @@ deriving anyclass instance (ToSchema n) => ToSchema (HQ.HashQualified n)
 deriving anyclass instance (ToSchema n) => ToSchema (HQ'.HashQualified n)
 
 instance FromHttpApiData ProjectName where
-  parseQueryParam = mapLeft tShow . tryInto @ProjectName
+  parseQueryParam = bimap (Text.pack . Megaparsec.errorBundlePretty) fst . Megaparsec.parse projectNameParser ""
 
 instance ToParamSchema ProjectName where
   toParamSchema _ =
@@ -407,7 +408,8 @@ instance ToSchema ProjectName
 deriving via Text instance ToJSON ProjectName
 
 instance FromHttpApiData ProjectBranchName where
-  parseQueryParam = mapLeft tShow . tryInto @ProjectBranchName
+  parseQueryParam =
+    first (Text.pack . Megaparsec.errorBundlePretty) . Megaparsec.parse (projectBranchNameParser True) ""
 
 instance ToSchema ProjectBranchName
 

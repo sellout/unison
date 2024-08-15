@@ -41,13 +41,8 @@ import Text.Megaparsec qualified as Megaparsec
 import Text.Megaparsec.Char qualified as Megaparsec
 import Unison.Core.Project (ProjectAndBranch (..), ProjectBranchName (..), ProjectName (..))
 import Unison.Prelude
-import Witch
 
 instance From ProjectName Text
-
-instance TryFrom Text ProjectName where
-  tryFrom =
-    maybeTryFrom (fmap fst . Megaparsec.parseMaybe projectNameParser)
 
 -- Parse a project name, and whether it ended in a forward slash (which is, of course, not part of the name)
 projectNameParser :: Megaparsec.Parsec Void Text (ProjectName, Bool)
@@ -125,10 +120,6 @@ prependUserSlugToProjectName userSlug (UnsafeProjectName projectName) =
           <> Text.Builder.text projectName
 
 instance From ProjectBranchName Text
-
-instance TryFrom Text ProjectBranchName where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe (projectBranchNameParser True))
 
 projectBranchNameParser :: Bool -> Megaparsec.Parsec Void Text ProjectBranchName
 projectBranchNameParser allowLeadingSlash =
@@ -211,10 +202,6 @@ instance From Semver Text where
         Text.Builder.char '.',
         Text.Builder.decimal z
       ]
-
-instance TryFrom Text Semver where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe semverParser)
 
 semverParser :: Megaparsec.Parsec Void Text Semver
 semverParser = do
@@ -336,10 +323,6 @@ data ProjectAndBranchNames
   | ProjectAndBranchNames'Unambiguous (These ProjectName ProjectBranchName)
   deriving stock (Eq, Show)
 
-instance TryFrom Text ProjectAndBranchNames where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe projectAndBranchNamesParser2)
-
 projectAndBranchNamesParser2 :: Megaparsec.Parsec Void Text ProjectAndBranchNames
 projectAndBranchNamesParser2 = do
   optional (Megaparsec.char '/') >>= \case
@@ -386,10 +369,6 @@ instance From (These ProjectName ProjectBranchName) Text where
         Text.Builder.text (into @Text project1)
           <> Text.Builder.char '/'
           <> Text.Builder.text (into @Text branch1)
-
-instance TryFrom Text (These ProjectName ProjectBranchName) where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe (projectAndBranchNamesParser ProjectBranchSpecifier'Name))
 
 -- Valid things:
 --
@@ -439,21 +418,6 @@ instance From (ProjectAndBranch ProjectName (Maybe ProjectBranchName)) Text wher
           <> Text.Builder.char '/'
           <> Text.Builder.text (into @Text branch)
 
-instance TryFrom Text (ProjectAndBranch ProjectName (Maybe ProjectBranchName)) where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe (projectAndOptionalBranchParser ProjectBranchSpecifier'Name))
-
--- | Attempt to parse a project and branch name from a string where both are required.
-instance TryFrom Text (ProjectAndBranch ProjectName ProjectBranchName) where
-  tryFrom =
-    maybeTryFrom $ \txt -> do
-      ProjectAndBranch projectName mayBranchName <- Megaparsec.parseMaybe (projectAndOptionalBranchParser ProjectBranchSpecifier'Name) txt
-      ProjectAndBranch projectName <$> mayBranchName
-
-instance TryFrom Text (ProjectAndBranch ProjectName (Maybe ProjectBranchNameOrLatestRelease)) where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe (projectAndOptionalBranchParser ProjectBranchSpecifier'NameOrLatestRelease))
-
 -- Valid things:
 --
 --   1. project
@@ -479,10 +443,6 @@ instance From (ProjectAndBranch (Maybe ProjectName) ProjectBranchName) Text wher
         Text.Builder.text (into @Text project)
           <> Text.Builder.char '/'
           <> Text.Builder.text (into @Text branch)
-
-instance TryFrom Text (ProjectAndBranch (Maybe ProjectName) ProjectBranchName) where
-  tryFrom =
-    maybeTryFrom (Megaparsec.parseMaybe branchWithOptionalProjectParser)
 
 -- Valid things:
 --

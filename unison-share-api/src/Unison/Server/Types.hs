@@ -33,6 +33,7 @@ import Servant.API
   )
 import Servant.Docs (DocCapture (..), DocQueryParam (..), ParamKind (..), ToParam)
 import Servant.Docs qualified as Docs
+import Text.Megaparsec qualified as Megaparsec
 import U.Codebase.Branch qualified as V2Branch
 import U.Codebase.Causal qualified as V2Causal
 import U.Codebase.HashTags
@@ -45,7 +46,7 @@ import Unison.HashQualified qualified as HQ
 import Unison.HashQualifiedPrime qualified as HQ'
 import Unison.Name (Name)
 import Unison.Prelude
-import Unison.Project (ProjectAndBranch, ProjectName)
+import Unison.Project (ProjectAndBranch, ProjectName, ProjectBranchSpecifier (..), projectAndOptionalBranchParser)
 import Unison.Server.Doc (Doc)
 import Unison.Server.Orphans ()
 import Unison.Server.Syntax qualified as Syntax
@@ -448,9 +449,9 @@ instance ToParamSchema ProjectBranchNameParam where
 -- | Parses URL escaped project and branch names, e.g. `@unison%2Fbase%2Fmain` or `@unison%2Fbase%2F@runarorama%2Fmain`
 instance FromHttpApiData ProjectBranchNameParam where
   parseUrlPiece t =
-    case tryInto @(ProjectAndBranch ProjectName ProjectBranchName) t of
+    case Megaparsec.parse (projectAndOptionalBranchParser ProjectBranchSpecifier'Name) "" t of
       Left _ -> Left "Invalid project and branch name"
-      Right pab -> Right . ProjectBranchNameParam $ pab
+      Right pab -> maybe (Left "Missing branch name") (pure . ProjectBranchNameParam) $ sequenceA pab
 
 instance ToParam (QueryParam "project-and-branch" (ProjectBranchNameParam)) where
   toParam _ =
