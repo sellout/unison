@@ -46,7 +46,7 @@ import Unison.HashQualified qualified as HQ
 import Unison.HashQualifiedPrime qualified as HQ'
 import Unison.Name (Name)
 import Unison.Prelude
-import Unison.Project (ProjectAndBranch, ProjectName, ProjectBranchSpecifier (..), projectAndOptionalBranchParser)
+import Unison.Project (ProjectAndBranch, ProjectBranchSpecifier (..), ProjectName, projectAndOptionalBranchParser)
 import Unison.Server.Doc (Doc)
 import Unison.Server.Orphans ()
 import Unison.Server.Syntax qualified as Syntax
