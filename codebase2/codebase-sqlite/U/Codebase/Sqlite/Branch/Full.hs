@@ -101,3 +101,19 @@ quadmapM ft fh fp fc (Branch terms types patches children) =
     doTerms = Map.bitraverse (bitraverse (bitraverse ft fh) (bitraverse ft fh)) doMetadata
     doTypes = Map.bitraverse (bitraverse ft fh) doMetadata
     doMetadata (Inline s) = Inline <$> Set.traverse (bitraverse ft fh) s
+
+-- | Traversal over text references in a branch
+t_ :: (Ord t', Ord h) => Traversal (Branch' t h p c) (Branch' t' h p c) t t'
+t_ f = quadmapM f pure pure pure
+
+-- | Traversal over hash references in a branch
+h_ :: (Ord t, Ord h') => Traversal (Branch' t h p c) (Branch' t h' p c) h h'
+h_ f = quadmapM pure f pure pure
+
+-- | Traversal over patch references in a branch
+p_ :: (Ord t, Ord h) => Traversal (Branch' t h p c) (Branch' t h p' c) p p'
+p_ f = quadmapM pure pure f pure
+
+-- | Traversal over child references in a branch
+c_ :: (Ord t, Ord h) => Traversal (Branch' t h p c) (Branch' t h p c') c c'
+c_ f = quadmapM pure pure pure f

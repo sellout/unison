@@ -25,6 +25,7 @@ module Unison.Sync.Types
 
     -- *** Entity Traversals
     entityHashes_,
+    patchOldHashes_,
     patchNewHashes_,
     patchDiffHashes_,
     namespaceDiffHashes_,
@@ -312,6 +313,11 @@ instance (FromJSON text, FromJSON oldHash, FromJSON newHash) => FromJSON (Patch 
     newHashLookup <- obj .: "hash_lookup"
     Base64Bytes bytes <- obj .: "bytes"
     pure Patch {..}
+
+patchOldHashes_ :: (Applicative m) => (oldHash -> m oldHash') -> Patch text oldHash newHash -> m (Patch text oldHash' newHash)
+patchOldHashes_ f (Patch {..}) = do
+  oldHashLookup <- traverse f oldHashLookup
+  pure (Patch {..})
 
 patchNewHashes_ :: (Applicative m) => (newHash -> m newHash') -> Patch text oldHash newHash -> m (Patch text oldHash newHash')
 patchNewHashes_ f (Patch {..}) = do

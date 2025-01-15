@@ -235,4 +235,6 @@ Not building tests will result in false reports of dead code, because Weeder won
 
 Removing `root-instances` and then `weeder | grep --invert-match '\(Instance\)'` can show you types that are unused (but appear used because of the instances).
 
+__NB__: There is code in this repo that isn’t used directly, but is exported for use by [the share-api repo](https://github.com/unisoncomputing/share-api). Ensure that you don’t remove anything in weeding that is needed there.
+
 __NB__: Sometimes weeder complains about HIE files being built with the wrong GHC version. To fix this, I’ve had success with deleting my .direnv cache. You can specify multiple directories for Weeder to search with `--hie-directory`, but can’t specify a directory to exclude.

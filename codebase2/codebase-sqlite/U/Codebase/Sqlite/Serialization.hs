@@ -39,6 +39,7 @@ module U.Codebase.Sqlite.Serialization
     putTermAndType,
     putSingleTerm,
     putDeclElement,
+    getTypeFromTermAndType,
     getSingleTerm,
     putLocalIdsWith,
     getLocalIdsWith,
@@ -321,6 +322,12 @@ getTermComponent =
 
 getTermAndType :: (MonadGet m) => m (TermFormat.Term, TermFormat.Type)
 getTermAndType = (,) <$> getFramed getSingleTerm <*> getTermElementType
+
+-- | Decode ONLY the type of a term-component element.
+-- This is useful during sync and when we need the type of a term component element but don't
+-- want to decode the whole term (which can be expensive).
+getTypeFromTermAndType :: (MonadGet m) => m (TermFormat.Type)
+getTypeFromTermAndType = skipFramed *> getTermElementType
 
 getSingleTerm :: (MonadGet m) => m TermFormat.Term
 getSingleTerm = getABT getSymbol getUnit getF

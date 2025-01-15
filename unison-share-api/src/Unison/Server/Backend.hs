@@ -43,12 +43,14 @@ module Unison.Server.Backend
     termEntryDisplayName,
     termEntryHQName,
     termEntryToNamedTerm,
+    termEntryLabeledDependencies,
     termListEntry,
     termReferentsByShortHash,
     typeDeclHeader,
     typeEntryDisplayName,
     typeEntryHQName,
     typeEntryToNamedType,
+    typeEntryLabeledDependencies,
     typeListEntry,
     typeReferencesByShortHash,
     typeToSyntaxHeader,
@@ -61,6 +63,7 @@ module Unison.Server.Backend
     termsToSyntaxOf,
     typesToSyntax,
     typesToSyntaxOf,
+    definitionResultsDependencies,
     evalDocRef,
     mkTermDefinition,
     mkTypeDefinition,
@@ -106,18 +109,18 @@ import Unison.Codebase.Execute qualified as Codebase
 import Unison.Codebase.Path (Path)
 import Unison.Codebase.Path qualified as Path
 import Unison.Codebase.Runtime qualified as Rt
-import Unison.Codebase.ShortCausalHash
-  ( ShortCausalHash,
-  )
+import Unison.Codebase.ShortCausalHash (ShortCausalHash)
 import Unison.Codebase.ShortCausalHash qualified as SCH
 import Unison.Codebase.SqliteCodebase.Conversions qualified as Cv
 import Unison.ConstructorReference (GConstructorReference (..))
 import Unison.ConstructorReference qualified as ConstructorReference
 import Unison.ConstructorType qualified as CT
 import Unison.DataDeclaration qualified as DD
+import Unison.DataDeclaration.Dependencies qualified as DD
 import Unison.HashQualified qualified as HQ
 import Unison.HashQualifiedPrime qualified as HQ'
 import Unison.Hashing.V2.Convert qualified as Hashing
+import Unison.LabeledDependency qualified as LD
 import Unison.Name (Name)
 import Unison.Name qualified as Name
 import Unison.NameSegment (NameSegment)
@@ -148,6 +151,7 @@ import Unison.Server.SearchResult qualified as SR
 import Unison.Server.SearchResultPrime qualified as SR'
 import Unison.Server.Syntax qualified as Syntax
 import Unison.Server.Types
+import Unison.Server.Types qualified as ServerTypes
 import Unison.ShortHash (ShortHash)
 import Unison.ShortHash qualified as SH
 import Unison.Sqlite qualified as Sqlite
@@ -266,6 +270,18 @@ data TermEntry v a = TermEntry
   }
   deriving (Eq, Ord, Show, Generic)
 
+termEntryLabeledDependencies :: (Ord v) => TermEntry v a -> Set LD.LabeledDependency
+termEntryLabeledDependencies TermEntry {termEntryType, termEntryReferent, termEntryTag, termEntryName} =
+  foldMap Type.labeledDependencies termEntryType
+    <> Set.singleton (LD.TermReferent (Cv.referent2to1UsingCT ct termEntryReferent))
+  where
+    ct :: V2Referent.ConstructorType
+    ct = case termEntryTag of
+      ServerTypes.Constructor ServerTypes.Ability -> V2Referent.EffectConstructor
+      ServerTypes.Constructor ServerTypes.Data -> V2Referent.DataConstructor
+      ServerTypes.Doc -> V2Referent.DataConstructor
+      _ -> error $ "termEntryLabeledDependencies: Term is not a constructor, but the referent was a constructor. Tag: " <> show termEntryTag <> " Name: " <> show termEntryName <> " Referent: " <> show termEntryReferent
+
 termEntryDisplayName :: TermEntry v a -> Text
 termEntryDisplayName = HQ'.toTextWith Name.toText . termEntryHQName
 
@@ -283,6 +299,10 @@ data TypeEntry = TypeEntry
     typeEntryTag :: TypeTag
   }
   deriving (Eq, Ord, Show, Generic)
+
+typeEntryLabeledDependencies :: TypeEntry -> Set LD.LabeledDependency
+typeEntryLabeledDependencies TypeEntry {typeEntryReference} =
+  Set.singleton (LD.TypeReference typeEntryReference)
 
 typeEntryDisplayName :: TypeEntry -> Text
 typeEntryDisplayName = HQ'.toTextWith Name.toText . typeEntryHQName
@@ -608,6 +628,26 @@ data DefinitionResults = DefinitionResults
     noResults :: [HQ.HashQualified Name]
   }
   deriving stock (Show)
+
+-- | Finds ALL direct references contained within a 'DefinitionResults' so we can
+-- build a pretty printer for them.
+definitionResultsDependencies :: DefinitionResults -> Set LD.LabeledDependency
+definitionResultsDependencies (DefinitionResults {termResults, typeResults}) =
+  let topLevelTerms = Set.fromList . fmap LD.TermReference $ Map.keys termResults
+      topLevelTypes = Set.fromList . fmap LD.TypeReference $ Map.keys typeResults
+      termDeps =
+        termResults
+          & foldOf
+            ( folded
+                . beside
+                  (to Type.labeledDependencies)
+                  (to Term.labeledDependencies)
+            )
+      typeDeps =
+        typeResults
+          & ifoldMap \typeRef ddObj ->
+            foldMap (DD.labeledDeclDependenciesIncludingSelfAndFieldAccessors typeRef) ddObj
+   in termDeps <> typeDeps <> topLevelTerms <> topLevelTypes
 
 expandShortCausalHash :: ShortCausalHash -> Backend Sqlite.Transaction CausalHash
 expandShortCausalHash hash = do

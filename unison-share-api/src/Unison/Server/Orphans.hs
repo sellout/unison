@@ -15,9 +15,12 @@ import Unison.Codebase.Editor.DisplayObject
 import Unison.Codebase.Path qualified as Path
 import Unison.Codebase.Path.Parse qualified as Path
 import Unison.Core.Project (ProjectBranchName (..), ProjectName (..))
+import Unison.Hash (Hash (..))
+import Unison.Hash qualified as Hash
 import Unison.HashQualified qualified as HQ
 import Unison.HashQualifiedPrime qualified as HQ'
 import Unison.Name (Name)
+import Unison.NameSegment.Internal (NameSegment)
 import Unison.Prelude
 import Unison.Project
 import Unison.Reference qualified as Reference
@@ -27,7 +30,14 @@ import Unison.ShortHash qualified as SH
 import Unison.Syntax.HashQualified qualified as HQ (parseText)
 import Unison.Syntax.HashQualifiedPrime qualified as HQ' (parseText)
 import Unison.Syntax.Name qualified as Name (parseTextEither, toText)
+import Unison.Syntax.NameSegment qualified as NameSegment
 import Unison.Util.Pretty (Width (..))
+
+instance ToJSON Hash where
+  toJSON h = String $ Hash.toBase32HexText h
+
+instance FromJSON Hash where
+  parseJSON = Aeson.withText "Hash" $ pure . Hash.unsafeFromBase32HexText
 
 instance ToJSON ShortHash where
   toJSON = Aeson.String . SH.toText
@@ -40,6 +50,14 @@ instance FromJSON ShortHash where
 
 instance ToSchema ShortHash where
   declareNamedSchema _ = declareNamedSchema (Proxy @Text)
+
+-- | Always renders to the form: #abcdef
+instance ToHttpApiData Reference.Reference where
+  toQueryParam = Reference.toText
+
+-- | Always renders to the form: #abcdef
+instance ToHttpApiData Referent.Referent where
+  toQueryParam = Referent.toText
 
 -- | Accepts shorthashes of any of the following forms:
 -- @abcdef
@@ -81,16 +99,35 @@ instance (ToJSON b, ToJSON a) => ToJSON (DisplayObject b a) where
     MissingObject sh -> object ["tag" Aeson..= String "MissingObject", "contents" Aeson..= sh]
     UserObject a -> object ["tag" Aeson..= String "UserObject", "contents" Aeson..= a]
 
+instance (FromJSON a, FromJSON b) => FromJSON (DisplayObject b a) where
+  parseJSON = withObject "DisplayObject" \o -> do
+    tag <- o .: "tag"
+    case tag of
+      "BuiltinObject" -> BuiltinObject <$> o .: "contents"
+      "MissingObject" -> MissingObject <$> o .: "contents"
+      "UserObject" -> UserObject <$> o .: "contents"
+      _ -> fail $ "Invalid tag: " <> Text.unpack tag
+
 deriving instance (ToSchema b, ToSchema a) => ToSchema (DisplayObject b a)
 
--- [21/10/07] Hello, this is Mitchell. Name refactor in progress. Changing internal representation from a flat text to a
--- list of segments (in reverse order) plus an "is absolute?" bit.
+-- [2021-10-07] Hello, this is Mitchell. Name refactor in progress. Changing internal representation from a flat text to
+-- a list of segments (in reverse order) plus an "is absolute?" bit.
 --
 -- To preserve backwards compatibility (for now, anyway -- is this even important long term?), the ToJSON and ToSchema
 -- instances below treat Name as before.
 
+instance ToJSON Name where
+  toEncoding = toEncoding . Name.toText
+  toJSON = toJSON . Name.toText
+
+instance ToJSONKey Name where
+  toJSONKey = contramap Name.toText (toJSONKey @Text)
+
 instance ToSchema Name where
   declareNamedSchema _ = declareNamedSchema (Proxy @Text)
+
+instance ToJSON NameSegment where
+  toJSON = toJSON . NameSegment.toEscapedText
 
 instance ToParamSchema Reference.Reference where
   toParamSchema _ =
@@ -128,6 +165,8 @@ instance FromHttpApiData Name where
   parseQueryParam = Name.parseTextEither
 
 deriving via Int instance FromHttpApiData Width
+
+deriving via Int instance ToHttpApiData Width
 
 deriving anyclass instance ToParamSchema Width
 

@@ -11,6 +11,8 @@ import U.Codebase.Reference (Reference, Reference')
 import U.Codebase.Reference qualified as Reference
 import Unison.Hash (Hash)
 import Unison.Prelude
+import Unison.ShortHash (ShortHash)
+import Unison.ShortHash qualified as SH
 
 data ConstructorType
   = DataConstructor
@@ -34,6 +36,11 @@ _Ref = _Ctor @"Ref"
 
 _Con :: Prism (Referent' tmr tyr) (Referent' tmr tyr') (tyr, ConstructorId) (tyr', ConstructorId)
 _Con = _Ctor @"Con"
+
+toReference :: Referent -> Reference
+toReference = \case
+  Ref termRef -> termRef
+  Con typeRef _ -> typeRef
 
 type Id = Id' Hash Hash
 
@@ -71,3 +78,11 @@ instance Bitraversable Id' where
   bitraverse f g = \case
     RefId r -> RefId <$> traverse f r
     ConId r c -> flip ConId c <$> traverse g r
+
+toShortHash :: Referent -> ShortHash
+toShortHash = \case
+  Ref r -> Reference.toShortHash r
+  Con r conId ->
+    case Reference.toShortHash r of
+      SH.Builtin b -> SH.Builtin b
+      SH.ShortHash prefix cycle _cid -> SH.ShortHash prefix cycle (Just conId)

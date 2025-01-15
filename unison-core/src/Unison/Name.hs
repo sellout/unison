@@ -17,6 +17,7 @@ module Unison.Name
     endsWith,
     endsWithReverseSegments,
     stripReversedPrefix,
+    tryStripReversedPrefix,
     reverseSegments,
     segments,
     suffixes,
@@ -180,6 +181,19 @@ stripReversedPrefix (Name p segs) suffix = do
   stripped <- List.stripSuffix suffix (toList segs)
   nonEmptyStripped <- List.NonEmpty.nonEmpty stripped
   pure $ Name p nonEmptyStripped
+
+-- | Like 'stripReversedPrefix' but if the prefix doesn't match, or if it would strip the
+-- entire name away just return the original name.
+--
+-- >>> tryStripReversedPrefix (fromReverseSegments ("c" :| ["b", "a"])) ["b", "a"]
+-- Name Relative (NameSegment {toText = "c"} :| [])
+-- >>> tryStripReversedPrefix (fromReverseSegments ("y" :| ["x"])) ["b", "a"]
+-- Name Relative (NameSegment {toText = "y"} :| [NameSegment {toText = "x"}])
+--
+-- >>> tryStripReversedPrefix (fromReverseSegments ("c" :| ["b", "a"])) ["b", "a"]
+-- Name Relative (NameSegment {toText = "c"} :| [])
+tryStripReversedPrefix :: Name -> [NameSegment] -> Name
+tryStripReversedPrefix n s = fromMaybe n (stripReversedPrefix n s)
 
 joinDot :: (HasCallStack) => Name -> Name -> Name
 joinDot n1@(Name p0 ss0) n2@(Name p1 ss1) =

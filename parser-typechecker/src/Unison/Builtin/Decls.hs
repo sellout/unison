@@ -11,7 +11,7 @@ import Unison.ConstructorType qualified as CT
 import Unison.DataDeclaration (DataDeclaration (..), Modifier (Structural, Unique))
 import Unison.DataDeclaration qualified as DD
 import Unison.DataDeclaration.ConstructorId (ConstructorId)
-import Unison.Hashing.V2.Convert (hashDataDecls)
+import Unison.Hashing.V2.Convert (hashDataDecls, typeToReference)
 import Unison.Pattern qualified as Pattern
 import Unison.Prelude
 import Unison.Reference (Reference)
@@ -46,7 +46,7 @@ pairRef = lookupDeclRef "Tuple"
 optionalRef = lookupDeclRef "Optional"
 eitherRef = lookupDeclRef "Either"
 
-testResultRef, linkRef, docRef, stdHandleRef :: Reference
+testResultRef, testResultListRef, linkRef, docRef, stdHandleRef :: Reference
 failureRef, ioFailureRef, tlsFailureRef, arrayFailureRef :: Reference
 cryptoFailureRef :: Reference
 exceptionRef :: Reference
@@ -56,6 +56,9 @@ isPropagatedRef = lookupDeclRef "IsPropagated"
 isTestRef = lookupDeclRef "IsTest"
 
 testResultRef = lookupDeclRef "Test.Result"
+
+-- Reference for [Test.Result]
+testResultListRef = typeToReference @Symbol (testResultListType ())
 
 linkRef = lookupDeclRef "Link"
 
