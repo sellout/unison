@@ -112,7 +112,6 @@ library
     , directory
     , exceptions
     , filepath
-    , inspection-testing
     , iproute
     , lens
     , memory
@@ -129,7 +128,6 @@ library
     , safe-exceptions
     , stm
     , tagged
-    , template-haskell
     , temporary
     , text
     , time
@@ -154,10 +152,11 @@ library
   if flag(optchecks)
     ghc-options: -O2
     cpp-options: -DOPT_CHECK
-    build-depends:
-        inspection-testing
   if flag(dumpcore)
     ghc-options: -ddump-simpl -ddump-stg-final -ddump-to-file -dsuppress-coercions -dsuppress-idinfo -dsuppress-module-prefixes -ddump-str-signatures -ddump-simpl-stats
+  if flag(optchecks)
+    build-depends:
+        inspection-testing
 
 test-suite runtime-tests
   type: exitcode-stdio-1.0
@@ -240,7 +239,5 @@ test-suite runtime-tests
   if flag(optchecks)
     ghc-options: -O2
     cpp-options: -DOPT_CHECK
-    build-depends:
-        inspection-testing
   if flag(dumpcore)
     ghc-options: -ddump-simpl -ddump-stg-final -ddump-to-file -dsuppress-coercions -dsuppress-idinfo -dsuppress-module-prefixes -ddump-str-signatures -ddump-simpl-stats

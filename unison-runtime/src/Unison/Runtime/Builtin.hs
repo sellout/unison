@@ -111,16 +111,6 @@ instance (Var v) => Fresh (v, v, v, v, v, v, v, v, v, v, v) where
     where
       [v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11] = freshes 11
 
-instance (Var v) => Fresh (v, v, v, v, v, v, v, v, v, v, v, v, v) where
-  fresh = (v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13)
-    where
-      [v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13] = freshes 13
-
-instance (Var v) => Fresh (v, v, v, v, v, v, v, v, v, v, v, v, v, v) where
-  fresh = (v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14)
-    where
-      [v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14] = freshes 14
-
 fls, tru :: (Var v) => ANormal v
 fls = TCon Ty.booleanRef 0 []
 tru = TCon Ty.booleanRef 1 []

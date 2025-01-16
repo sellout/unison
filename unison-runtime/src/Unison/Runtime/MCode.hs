@@ -21,7 +21,6 @@ module Unison.Runtime.MCode
     GCombInfo (..),
     Comb,
     RComb (..),
-    RCombInfo,
     GCombs,
     RCombs,
     CombIx (..),
@@ -44,7 +43,6 @@ module Unison.Runtime.MCode
     argsToLists,
     countArgs,
     combRef,
-    combDeps,
     combTypes,
     prettyCombs,
     prettyComb,
@@ -256,9 +254,6 @@ import Unison.Var (Var)
 -- mutation is to enable more efficient implementation of
 -- certain recursive, 'deep' handlers, since those can operate
 -- more like stateful code than control operators.
-
-data Sandboxed = Tracked | Untracked
-  deriving (Show, Eq, Ord)
 
 data Args'
   = Arg1 !Int
@@ -684,8 +679,6 @@ type RCombs val = GCombs val (RComb val)
 
 -- | The fixed point of a GComb where all references to a Comb are themselves Combs.
 newtype RComb val = RComb {unRComb :: GComb val (RComb val)}
-
-type RCombInfo val = GCombInfo (RComb val)
 
 instance Show (RComb val) where
   show _ = "<RCOMB>"
@@ -1626,28 +1619,9 @@ demuxArgs = \case
   [(i, _), (j, _)] -> VArg2 i j
   args -> VArgN $ PA.primArrayFromList (fst <$> args)
 
-combDeps :: GComb val comb -> [Word64]
-combDeps (Lam _ _ s) = sectionDeps s
-combDeps (CachedVal {}) = []
-
 combTypes :: GComb any comb -> [Word64]
 combTypes (Lam _ _ s) = sectionTypes s
 combTypes (CachedVal {}) = []
-
-sectionDeps :: GSection comb -> [Word64]
-sectionDeps (App _ (Env (CIx _ w _) _) _) = [w]
-sectionDeps (Call _ (CIx _ w _) _ _) = [w]
-sectionDeps (Match _ br) = branchDeps br
-sectionDeps (DMatch _ _ br) = branchDeps br
-sectionDeps (RMatch _ pu br) =
-  sectionDeps pu ++ foldMap branchDeps br
-sectionDeps (NMatch _ _ br) = branchDeps br
-sectionDeps (Ins i s)
-  | Name (Env (CIx _ w _) _) _ <- i = w : sectionDeps s
-  | otherwise = sectionDeps s
-sectionDeps (Let s (CIx _ w _) _ b) =
-  w : sectionDeps s ++ sectionDeps b
-sectionDeps _ = []
 
 sectionTypes :: GSection comb -> [Word64]
 sectionTypes (Ins i s) = instrTypes i ++ sectionTypes s
@@ -1665,15 +1639,6 @@ instrTypes (Reset ws) = setToList ws
 instrTypes (Capture w) = [w]
 instrTypes (SetDyn w _) = [w]
 instrTypes _ = []
-
-branchDeps :: GBranch comb -> [Word64]
-branchDeps (Test1 _ s1 d) = sectionDeps s1 ++ sectionDeps d
-branchDeps (Test2 _ s1 _ s2 d) =
-  sectionDeps s1 ++ sectionDeps s2 ++ sectionDeps d
-branchDeps (TestW d m) =
-  sectionDeps d ++ foldMap sectionDeps m
-branchDeps (TestT d m) =
-  sectionDeps d ++ foldMap sectionDeps m
 
 branchTypes :: GBranch comb -> [Word64]
 branchTypes (Test1 _ s1 d) = sectionTypes s1 ++ sectionTypes d

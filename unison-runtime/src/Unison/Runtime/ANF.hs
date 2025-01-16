@@ -46,7 +46,6 @@ module Unison.Runtime.ANF
     floatGroup,
     lamLift,
     lamLiftGroup,
-    litRef,
     inlineAlias,
     addDefaultCases,
     ANormalF (.., AApv, ACom, ACon, AKon, AReq, APrm, AFOp),
@@ -79,9 +78,7 @@ module Unison.Runtime.ANF
     inline,
     foldGroup,
     foldGroupLinks,
-    overGroup,
     overGroupLinks,
-    traverseGroup,
     traverseGroupLinks,
     normalLinks,
     prettyGroup,
@@ -1231,15 +1228,6 @@ data Lit
   | LY Reference -- Type Link
   deriving (Show, Eq)
 
-litRef :: Lit -> Reference
-litRef (I _) = Ty.intRef
-litRef (N _) = Ty.natRef
-litRef (F _) = Ty.floatRef
-litRef (T _) = Ty.textRef
-litRef (C _) = Ty.charRef
-litRef (LM _) = Ty.termLinkRef
-litRef (LY _) = Ty.typeLinkRef
-
 -- Note: Enum/Bounded instances should only be used for things like
 -- getting a list of all ops. Using auto-generated numberings for
 -- serialization, for instance, could cause observable changes to
@@ -1591,18 +1579,8 @@ codeGroup (CodeRep sg _) = sg
 instance Eq Code where
   CodeRep sg1 _ == CodeRep sg2 _ = sg1 == sg2
 
-overGroup :: (SuperGroup Symbol -> SuperGroup Symbol) -> Code -> Code
-overGroup f (CodeRep sg ch) = CodeRep (f sg) ch
-
 foldGroup :: (Monoid m) => (SuperGroup Symbol -> m) -> Code -> m
 foldGroup f (CodeRep sg _) = f sg
-
-traverseGroup ::
-  (Applicative f) =>
-  (SuperGroup Symbol -> f (SuperGroup Symbol)) ->
-  Code ->
-  f Code
-traverseGroup f (CodeRep sg ch) = flip CodeRep ch <$> f sg
 
 data Cont
   = KE

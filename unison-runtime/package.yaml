@@ -30,14 +30,15 @@ when:
   - condition: flag(optchecks)
     ghc-options: -O2
     cpp-options: -DOPT_CHECK
-    dependencies:
-      - inspection-testing
   - condition: flag(dumpcore)
     ghc-options: -ddump-simpl -ddump-stg-final -ddump-to-file -dsuppress-coercions -dsuppress-idinfo -dsuppress-module-prefixes -ddump-str-signatures -ddump-simpl-stats # -dsuppress-type-applications -dsuppress-type-signatures
 
 library:
   source-dirs: src
   when:
+    - condition: flag(optchecks)
+      dependencies:
+        - inspection-testing
     - condition: false
       other-modules: Paths_unison_runtime
 
@@ -76,8 +77,6 @@ library:
     - tagged
     - temporary
     - text
-    - template-haskell
-    - inspection-testing
     - time
     - tls
     - unison-codebase-sqlite

@@ -49,7 +49,6 @@ internalBug = throw . CE callStack . Pretty.lit . fromString
 -- correspond to constructors.
 newtype RTag = RTag Word64
   deriving stock (Eq, Ord, Show, Read)
-  deriving newtype (EC.EnumKey)
 
 newtype CTag = CTag Word16
   deriving stock (Eq, Ord, Show, Read)
@@ -58,7 +57,6 @@ newtype CTag = CTag Word16
 -- | A combined tag, which is a packed representation of an RTag and a CTag
 newtype PackedTag = PackedTag Word64
   deriving stock (Eq, Ord, Show, Read)
-  deriving newtype (EC.EnumKey)
 
 class Tag t where rawTag :: t -> Word64
 

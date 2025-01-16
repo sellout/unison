@@ -53,7 +53,6 @@ module Unison.Runtime.Stack
         NatVal,
         DoubleVal,
         IntVal,
-        BoolVal,
         UnboxedVal,
         BoxedVal
       ),
@@ -69,7 +68,6 @@ module Unison.Runtime.Stack
     bnull,
     nullSeg,
     peekOffD,
-    peekC,
     peekOffC,
     poke,
     pokeD,
@@ -78,9 +76,7 @@ module Unison.Runtime.Stack
     pokeOffC,
     pokeBool,
     pokeTag,
-    peekTag,
     peekTagOff,
-    peekI,
     peekOffI,
     peekOffN,
     pokeN,
@@ -91,7 +87,6 @@ module Unison.Runtime.Stack
     peekOffBi,
     pokeBi,
     pokeOffBi,
-    peekBool,
     peekOffBool,
     peekOffS,
     pokeS,
@@ -102,7 +97,6 @@ module Unison.Runtime.Stack
     dumpFP,
     alloc,
     peek,
-    upeek,
     bpeek,
     peekOff,
     upeekOff,
@@ -117,7 +111,6 @@ module Unison.Runtime.Stack
     bumpn,
     grab,
     ensure,
-    duplicate,
     discardFrame,
     saveFrame,
     saveArgs,
@@ -136,7 +129,6 @@ module Unison.Runtime.Stack
     intTypeTag,
     charTypeTag,
     floatTypeTag,
-    hasNoAllocations,
   )
 where
 
@@ -149,8 +141,6 @@ import Data.Tagged (Tagged (..))
 import Data.Word
 import GHC.Base
 import GHC.Exts as L (IsList (..))
-import Language.Haskell.TH qualified as TH
-import Test.Inspection qualified as TI
 import Unison.Prelude
 import Unison.Reference (Reference)
 import Unison.Runtime.ANF (PackedTag)
@@ -433,16 +423,6 @@ pattern IntVal i <- (matchIntVal -> Just i)
   where
     IntVal i = Val i intTypeTag
 
-matchBoolVal :: Val -> Maybe Bool
-matchBoolVal = \case
-  (BoxedVal (Enum r t)) | r == Ty.booleanRef -> Just (t == TT.falseTag)
-  _ -> Nothing
-
-pattern BoolVal :: Bool -> Val
-pattern BoolVal b <- (matchBoolVal -> Just b)
-  where
-    BoolVal b = if b then trueVal else falseVal
-
 -- Define singletons we can use for the bools to prevent allocation where possible.
 falseVal :: Val
 falseVal = BoxedVal (Enum Ty.booleanRef TT.falseTag)
@@ -462,7 +442,7 @@ intToDouble w = indexByteArray (BA.byteArrayFromList [w]) 0
 
 type SegList = [Val]
 
-pattern PApV :: CombIx -> RCombInfo Val -> SegList -> Closure
+pattern PApV :: CombIx -> GCombInfo (RComb Val) -> SegList -> Closure
 pattern PApV cix rcomb segs <-
   PAp cix rcomb (segToList -> segs)
   where
@@ -725,14 +705,6 @@ peek stk@(Stack _ _ sp ustk _) = do
   pure (Val u b)
 {-# INLINE peek #-}
 
-peekI :: DebugCallStack => Stack -> IO Int
-peekI _stk@(Stack _ _ sp ustk _) = do
-#ifdef STACK_CHECK
-  assertUnboxed _stk 0
-#endif
-  readByteArray ustk sp
-{-# INLINE peekI #-}
-
 peekOffI :: DebugCallStack => Stack -> Off -> IO Int
 peekOffI _stk@(Stack _ _ sp ustk _) i = do
 #ifdef STACK_CHECK
@@ -744,14 +716,6 @@ peekOffI _stk@(Stack _ _ sp ustk _) i = do
 bpeek :: DebugCallStack => Stack -> IO BVal
 bpeek (Stack _ _ sp _ bstk) = readArray bstk sp
 {-# INLINE bpeek #-}
-
-upeek :: DebugCallStack => Stack -> IO UVal
-upeek _stk@(Stack _ _ sp ustk _) = do
-#ifdef STACK_CHECK
-  assertUnboxed _stk 0
-#endif
-  readByteArray ustk sp
-{-# INLINE upeek #-}
 
 peekOff :: DebugCallStack => Stack -> Off -> IO Val
 peekOff stk@(Stack _ _ sp ustk _) i = do
@@ -804,10 +768,6 @@ pokeTag =
   -- For now we just use ints, but maybe should have a separate type for tags so we can detect if we're leaking them.
   pokeI
 {-# INLINE pokeTag #-}
-
-peekTag :: DebugCallStack => Stack -> IO Int
-peekTag = peekI
-{-# INLINE peekTag #-}
 
 peekTagOff :: DebugCallStack => Stack -> Off -> IO Int
 peekTagOff = peekOffI
@@ -912,21 +872,6 @@ bumpn (Stack ap fp sp ustk bstk) n = do
 #endif
   pure stk'
 {-# INLINE bumpn #-}
-
-duplicate :: Stack -> IO Stack
-duplicate (Stack ap fp sp ustk bstk) = do
-  ustk' <- dupUStk
-  bstk' <- dupBStk
-  pure $ Stack ap fp sp ustk' bstk'
-  where
-    dupUStk = do
-      let sz = sizeofMutableByteArray ustk
-      b <- newByteArray sz
-      copyMutableByteArray b 0 ustk 0 sz
-      pure b
-    dupBStk = do
-      cloneMutableArray bstk 0 (sizeofMutableArray bstk)
-{-# INLINE duplicate #-}
 
 discardFrame :: Stack -> IO Stack
 discardFrame (Stack ap fp _ ustk bstk) = pure $ Stack ap fp fp ustk bstk
@@ -1041,11 +986,6 @@ asize :: Stack -> SZ
 asize (Stack ap fp _ _ _) = fp - ap
 {-# INLINE asize #-}
 
-peekC :: Stack -> IO Char
-peekC stk = do
-  Char.chr <$> peekI stk
-{-# INLINE peekC #-}
-
 peekOffN :: Stack -> Int -> IO Word64
 peekOffN _stk@(Stack _ _ sp ustk _) i = do
 #ifdef STACK_CHECK
@@ -1138,14 +1078,6 @@ peekOffBi :: (BuiltinForeign b) => Stack -> Int -> IO b
 peekOffBi stk i = unwrapForeign . marshalToForeign <$> bpeekOff stk i
 {-# INLINE peekOffBi #-}
 
-peekBool :: Stack -> IO Bool
-peekBool stk = do
-  b <- bpeek stk
-  pure $ case b of
-    Enum _ t -> t /= TT.falseTag
-    _ -> error "peekBool: not a boolean"
-{-# INLINE peekBool #-}
-
 peekOffBool :: Stack -> Int -> IO Bool
 peekOffBool stk i = do
   b <- bpeekOff stk i
@@ -1217,6 +1149,3 @@ contTermRefs f (Mark _ _ m k) =
 contTermRefs f (Push _ _ (CIx r _ _) _ _ k) =
   f r <> contTermRefs f k
 contTermRefs _ _ = mempty
-
-hasNoAllocations :: TH.Name -> TI.Obligation
-hasNoAllocations n = TI.mkObligation n TI.NoAllocation

@@ -20,7 +20,6 @@ module Unison.DataDeclaration
     declFields,
     typeDependencies,
     unhashComponent,
-    mkDataDecl',
     mkEffectDecl',
     typeOfConstructor,
     withEffectDeclM,
@@ -188,10 +187,6 @@ typeDependencies dd =
 mkEffectDecl' ::
   Modifier -> a -> [v] -> [(a, v, Type v a)] -> EffectDeclaration v a
 mkEffectDecl' m a b cs = EffectDeclaration (DataDeclaration m a b cs)
-
-mkDataDecl' ::
-  Modifier -> a -> [v] -> [(a, v, Type v a)] -> DataDeclaration v a
-mkDataDecl' = DataDeclaration
 
 updateDependencies :: (Ord v) => Map Reference Reference -> Decl v a -> Decl v a
 updateDependencies typeUpdates decl =

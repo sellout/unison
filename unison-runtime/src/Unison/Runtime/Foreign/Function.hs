@@ -24,14 +24,12 @@ import Crypto.MAC.HMAC qualified as HMAC
 import Crypto.PubKey.Ed25519 qualified as Ed25519
 import Crypto.PubKey.RSA.PKCS15 qualified as RSA
 import Crypto.Random (getRandomBytes)
-import Data.Atomics (Ticket)
 import Data.Bits (shiftL, shiftR, (.|.))
 import Data.ByteArray qualified as BA
 import Data.ByteString (hGet, hGetSome, hPut)
 import Data.ByteString.Lazy qualified as L
 import Data.Default (def)
 import Data.Digest.Murmur64 (asWord64, hash64)
-import Data.IORef (IORef)
 import Data.IP (IP)
 import Data.PEM (PEM, pemContent, pemParseLBS)
 import Data.Sequence qualified as Sq
@@ -158,8 +156,6 @@ import Unison.Type
     mbytearrayRef,
     mvarRef,
     promiseRef,
-    refRef,
-    ticketRef,
     tvarRef,
     typeLinkRef,
   )
@@ -1660,14 +1656,6 @@ instance ForeignConvention (MVar Val) where
 instance ForeignConvention (TVar Val) where
   readForeign = readForeignAs (unwrapForeign . marshalToForeign)
   writeForeign = writeForeignAs (Foreign . Wrap tvarRef)
-
-instance ForeignConvention (IORef Val) where
-  readForeign = readForeignAs (unwrapForeign . marshalToForeign)
-  writeForeign = writeForeignAs (Foreign . Wrap refRef)
-
-instance ForeignConvention (Ticket Val) where
-  readForeign = readForeignAs (unwrapForeign . marshalToForeign)
-  writeForeign = writeForeignAs (Foreign . Wrap ticketRef)
 
 instance ForeignConvention (Promise Val) where
   readForeign = readForeignAs (unwrapForeign . marshalToForeign)
