@@ -16,16 +16,18 @@ module Unison.ABT.Normalized
     alpha,
     renames,
     rename,
+    visit,
+    visitPure,
   )
 where
 
 import Data.Bifoldable
 import Data.Bifunctor
 import Data.Foldable (toList)
--- import Data.Bitraversable
-
+import Data.Functor.Identity (Identity (..))
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Unison.ABT (Var (..))
@@ -102,7 +104,7 @@ class (Bifoldable f, Bifunctor f) => Align f where
 
 alphaErr ::
   (Align f) => (Var v) => Map v v -> Term f v -> Term f v -> Either (Term f v, Term f v) a
-alphaErr un tml tmr = Left (tml, renames count un tmr)
+alphaErr un tml tmr = Left (tml, renames0 count un tmr)
   where
     count = Map.fromListWith (+) . flip zip [1, 1 ..] $ toList un
 
@@ -132,21 +134,21 @@ pattern TAbss vs bd <-
 
 {-# COMPLETE TAbss #-}
 
--- Simultaneous variable renaming.
+-- Simultaneous variable renaming implementation.
 --
 -- subvs0 counts the number of variables being renamed to a particular
 -- variable
 --
 -- rnv0 is the variable renaming map.
-renames ::
+renames0 ::
   (Var v, Ord v, Bifunctor f, Bifoldable f) =>
   Map v Int ->
   Map v v ->
   Term f v ->
   Term f v
-renames subvs0 rnv0 tm = case tm of
+renames0 subvs0 rnv0 tm = case tm of
   TAbs u body
-    | not $ Map.null rnv' -> TAbs u' (renames subvs' rnv' body)
+    | not $ Map.null rnv' -> TAbs u' (renames0 subvs' rnv' body)
     where
       rnv' = Map.alter (const $ adjustment) u rnv
       -- if u is in the set of variables we're substituting in, it
@@ -163,7 +165,7 @@ renames subvs0 rnv0 tm = case tm of
         | otherwise = (Nothing, subvs)
   TTm body
     | not $ Map.null rnv ->
-        TTm $ bimap (\u -> Map.findWithDefault u u rnv) (renames subvs rnv) body
+        TTm $ bimap (\u -> Map.findWithDefault u u rnv) (renames0 subvs rnv) body
   _ -> tm
   where
     fvs = freeVars tm
@@ -178,10 +180,36 @@ renames subvs0 rnv0 tm = case tm of
       | n <= 1 = Nothing
       | otherwise = Just (n - 1)
 
+-- Simultaneous variable renaming.
+renames ::
+  (Var v, Ord v, Bifunctor f, Bifoldable f) =>
+  Map v v ->
+  Term f v ->
+  Term f v
+renames rnv tm = renames0 subvs rnv tm
+  where
+    subvs = Map.fromListWith (+) . fmap (,1) $ Map.elems rnv
+
 rename ::
   (Var v, Ord v, Bifunctor f, Bifoldable f) =>
   v ->
   v ->
   Term f v ->
   Term f v
-rename old new = renames (Map.singleton new 1) (Map.singleton old new)
+rename old new = renames0 (Map.singleton new 1) (Map.singleton old new)
+
+visit ::
+  (Applicative g, Bifoldable f, Traversable (f v), Var v) =>
+  (Term f v -> Maybe (g (Term f v))) ->
+  Term f v ->
+  g (Term f v)
+visit h t = flip fromMaybe (h t) $ case out t of
+  Abs x e -> TAbs x <$> visit h e
+  Tm body -> TTm <$> traverse (visit h) body
+
+visitPure ::
+  (Bifoldable f, Traversable (f v), Var v) =>
+  (Term f v -> Maybe (Term f v)) ->
+  Term f v ->
+  Term f v
+visitPure h = runIdentity . visit (fmap pure . h)

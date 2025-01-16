@@ -1,6 +1,7 @@
 module Unison.Util.Set
   ( asSingleton,
     difference1,
+    intersects,
     mapMaybe,
     Unison.Util.Set.traverse,
     flatMap,
@@ -22,6 +23,11 @@ difference1 xs ys =
   if null zs then Nothing else Just zs
   where
     zs = Set.difference xs ys
+
+-- | Get whether two sets intersect.
+intersects :: (Ord a) => Set a -> Set a -> Bool
+intersects xs ys =
+  not (Set.disjoint xs ys)
 
 mapMaybe :: (Ord b) => (a -> Maybe b) -> Set a -> Set b
 mapMaybe f = Set.fromList . Maybe.mapMaybe f . Set.toList

@@ -460,7 +460,12 @@ termsOfTypeByReference c r =
     . Set.map (fmap Reference.DerivedId)
     <$> termsOfTypeImpl c r
 
-filterTermsByReferenceIdHavingType :: (Var v) => Codebase m v a -> Type v a -> Set TermReferenceId -> Sqlite.Transaction (Set TermReferenceId)
+filterTermsByReferenceIdHavingType ::
+  (Var v) =>
+  Codebase m v a ->
+  Type v a ->
+  Set TermReferenceId ->
+  Sqlite.Transaction (Set TermReferenceId)
 filterTermsByReferenceIdHavingType c ty = filterTermsByReferenceIdHavingTypeImpl c (Hashing.typeToReference ty)
 
 -- | Get the set of terms-or-constructors mention the given type anywhere in their signature.

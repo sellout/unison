@@ -49,6 +49,9 @@ _Ref = _Ctor @"Ref"
 -- | Types are represented as ABTs over the base functor F, with variables in `v`
 type Type v a = ABT.Term F v a
 
+-- | For use with recursion schemes.
+type TypeF v a r = ABT.Term' F v a r
+
 freeVars :: Type v a -> Set v
 freeVars = ABT.freeVars
 

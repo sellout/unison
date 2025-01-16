@@ -13,6 +13,7 @@ module Unison.Syntax.TermParser
   )
 where
 
+import Control.Comonad.Trans.Cofree (CofreeF ((:<)))
 import Control.Monad.Reader (asks, local)
 import Data.Bitraversable (bitraverse)
 import Data.Char qualified as Char
@@ -607,7 +608,7 @@ doc2Block = do
   let docAnn = Ann startDoc endDoc
   (docAnn,) . docUntitledSection (gann docAnn) <$> traverse foldTop docContents
   where
-    foldTop = cataM \(a :<< top) -> docTop a =<< bitraverse (cataM \(a :<< leaf) -> docLeaf a leaf) pure top
+    foldTop = cataM \(a :< top) -> docTop a =<< bitraverse (cataM \(a :< leaf) -> docLeaf a leaf) pure top
 
     gann :: (Annotated a) => a -> Ann
     gann = Ann.GeneratedFrom . ann
@@ -1243,22 +1244,20 @@ verifyRelativeName' name = do
 
 -- example:
 --   (x, y)   = foo
---   hd +: tl | hd < 10 = [1,2,3]
 --   stuff
 --
 -- desugars to:
 --
 --   match foo with
---     (x,y) -> match [1,2,3] with
---       hd +: tl | hd < 10 -> stuff
+--     (x,y) -> stuff
 --
 destructuringBind :: forall m v. (Monad m, Var v) => P v m (Ann, Term v Ann -> Term v Ann)
 destructuringBind = do
   -- We have to look ahead as far as the `=` to know if this is a bind or
   -- just an action, for instance:
-  --   Some 42
+  --   (Some 42)
   --   vs
-  --   Some 42 = List.head elems
+  --   (Some 42) = List.head elems
   (p, boundVars) <- P.try do
     (p, boundVars) <- parsePattern
     let boundVars' = snd <$> boundVars
