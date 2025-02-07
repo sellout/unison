@@ -3,8 +3,6 @@
 
 module Unison.Names
   ( Names (..),
-    addTerm,
-    addType,
     labeledReferences,
     conflicts,
     contains,
@@ -55,7 +53,6 @@ module Unison.Names
     isEmpty,
     hashQualifyTypesRelation,
     hashQualifyTermsRelation,
-    fromTermsAndTypes,
     lenientToNametree,
     resolveName,
     resolveNameIncludingNames,
@@ -374,12 +371,6 @@ termAliases names n r = Set.delete n $ namesForReferent names r
 typeAliases :: Names -> Name -> TypeReference -> Set Name
 typeAliases names n r = Set.delete n $ namesForReference names r
 
-addType :: Name -> TypeReference -> Names -> Names
-addType n r = (<> fromTypes [(n, r)])
-
-addTerm :: Name -> Referent -> Names -> Names
-addTerm n r = (<> fromTerms [(n, r)])
-
 -- | Like hqTermName and hqTypeName, but considers term and type names to
 -- conflict with each other (so will hash-qualify if there is e.g. both a term
 -- and a type named "foo").
@@ -449,16 +440,6 @@ _hqTermName' _b n r =
 _hqTypeName' :: Names -> Name -> TypeReference -> HQ'.HashQualified Name
 _hqTypeName' _b n r =
   HQ'.take numHashChars $ HQ'.fromNamedReference n r
-
-fromTerms :: [(Name, Referent)] -> Names
-fromTerms ts = Names (R.fromList ts) mempty
-
-fromTypes :: [(Name, TypeReference)] -> Names
-fromTypes ts = Names mempty (R.fromList ts)
-
-fromTermsAndTypes :: [(Name, Referent)] -> [(Name, TypeReference)] -> Names
-fromTermsAndTypes terms types =
-  fromTerms terms <> fromTypes types
 
 -- | Map over each name in a 'Names'.
 mapNames :: (Name -> Name) -> Names -> Names

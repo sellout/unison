@@ -4,7 +4,6 @@ module Unison.Util.Find
     simpleFuzzyScore,
     fuzzyFindInBranch,
     fuzzyFindMatchArray,
-    prefixFindInBranch,
   )
 where
 
@@ -17,7 +16,6 @@ import Text.Regex.TDFA qualified as RE
 import Unison.HashQualified qualified as HQ
 import Unison.HashQualifiedPrime qualified as HQ'
 import Unison.Name (Name)
-import Unison.Name qualified as Name
 import Unison.Names (Names)
 import Unison.Names qualified as Names
 import Unison.Prelude
@@ -27,7 +25,6 @@ import Unison.Server.SearchResult (SearchResult)
 import Unison.Server.SearchResult qualified as SR
 import Unison.ShortHash qualified as SH
 import Unison.Syntax.Name qualified as Name (toText)
-import Unison.Syntax.NamePrinter (prettyHashQualified)
 import Unison.Util.Monoid (intercalateMap)
 import Unison.Util.Pretty qualified as P
 import Unison.Util.Relation qualified as R
@@ -133,19 +130,6 @@ fuzzyFindMatchArray query items render =
 -- c. the item itself for alphabetical ranking
 -- Ord MatchArray already provides a. and b.  todo: c.
 
-prefixFindInBranch ::
-  Names -> HQ'.HashQualified Name -> [(SearchResult, P.Pretty P.ColorText)]
-prefixFindInBranch b hq =
-  fmap getName $
-    -- query string includes a name component, so do a prefix find on that
-    filter (filterName (HQ'.toName hq)) (candidates b hq)
-  where
-    filterName :: Name -> SearchResult -> Bool
-    filterName n1 sr =
-      fromMaybe False do
-        n2 <- HQ.toName (SR.name sr)
-        pure (n1 `Name.isPrefixOf` n2)
-
 -- only search before the # before the # and after the # after the #
 fuzzyFindInBranch ::
   (HasCallStack) =>
@@ -162,9 +146,6 @@ fuzzyFindInBranch b hq =
           Nothing -> error "search result without name"
           Just name -> Name.toText name
     )
-
-getName :: SearchResult -> (SearchResult, P.Pretty P.ColorText)
-getName sr = (sr, P.syntaxToColor $ prettyHashQualified (SR.name sr))
 
 -- Invariant: all `SearchResult` in the output will have names, even though the type allows them to have only hashes
 candidates :: Names.Names -> HQ'.HashQualified Name -> [SearchResult]

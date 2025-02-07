@@ -31,9 +31,6 @@ module Unison.Sqlite.Transaction
     queryOneCol,
 
     -- *** With checks
-    queryListRowCheck,
-    queryListColCheck,
-    queryMaybeRowCheck,
     queryMaybeColCheck,
     queryOneRowCheck,
     queryOneColCheck,
@@ -303,30 +300,6 @@ queryOneCol s =
   Transaction \conn -> Connection.queryOneCol conn s
 
 -- With results, with parameters, with checks
-
-queryListRowCheck ::
-  (Sqlite.FromRow a, SqliteExceptionReason e, HasCallStack) =>
-  Sql ->
-  ([a] -> Either e r) ->
-  Transaction r
-queryListRowCheck sql check =
-  Transaction \conn -> Connection.queryListRowCheck conn sql check
-
-queryListColCheck ::
-  (Sqlite.FromField a, SqliteExceptionReason e, HasCallStack) =>
-  Sql ->
-  ([a] -> Either e r) ->
-  Transaction r
-queryListColCheck sql check =
-  Transaction \conn -> Connection.queryListColCheck conn sql check
-
-queryMaybeRowCheck ::
-  (Sqlite.FromRow a, SqliteExceptionReason e, HasCallStack) =>
-  Sql ->
-  (a -> Either e r) ->
-  Transaction (Maybe r)
-queryMaybeRowCheck s check =
-  Transaction \conn -> Connection.queryMaybeRowCheck conn s check
 
 queryMaybeColCheck ::
   (Sqlite.FromField a, SqliteExceptionReason e, HasCallStack) =>

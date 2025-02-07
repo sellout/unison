@@ -49,9 +49,6 @@ module Unison.Sqlite
     queryOneCol,
 
     -- *** With checks
-    queryListRowCheck,
-    queryListColCheck,
-    queryMaybeRowCheck,
     queryMaybeColCheck,
     queryOneRowCheck,
     queryOneColCheck,

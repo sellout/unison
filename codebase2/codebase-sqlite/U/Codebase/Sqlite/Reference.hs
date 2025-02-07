@@ -8,7 +8,6 @@ import U.Codebase.Reference (Id' (Id), Reference' (ReferenceBuiltin, ReferenceDe
 import U.Codebase.Sqlite.DbId (HashId, ObjectId, TextId)
 import U.Codebase.Sqlite.LocalIds (LocalDefnId, LocalHashId, LocalTextId)
 import U.Codebase.Sqlite.Orphans ()
-import U.Util.Base32Hex
 import Unison.Prelude
 import Unison.Sqlite (FromField, FromRow (fromRow), Only (..), RowParser, SQLData (SQLNull), ToField, ToRow (toRow), field)
 
@@ -17,10 +16,6 @@ type Reference = Reference' TextId ObjectId
 type TermReference = Reference
 
 type TypeReference = Reference
-
--- | The name lookup table uses this because normalizing/denormalizing hashes to ids is slower
--- than we'd like when writing/reading the entire name lookup table.
-type TextReference = Reference' Text Base32Hex
 
 type Id = Id' ObjectId
 
@@ -38,9 +33,6 @@ type ReferenceH = Reference' TextId HashId
 
 type IdH = Id' HashId
 
-instance ToRow (Reference' Text Base32Hex) where
-  toRow = referenceToRow
-
 instance ToRow (Reference' TextId HashId) where
   toRow = referenceToRow
 
@@ -56,9 +48,6 @@ instance FromRow (Reference' TextId HashId) where
   fromRow = referenceFromRow'
 
 instance FromRow (Reference) where
-  fromRow = referenceFromRow'
-
-instance FromRow (Reference' Text Base32Hex) where
   fromRow = referenceFromRow'
 
 referenceFromRow' :: (FromField t, FromField h, Show t, Show h) => RowParser (Reference' t h)

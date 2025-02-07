@@ -24,7 +24,6 @@ module Unison.Sqlite.Connection
 
     -- *** With checks
     queryListRowCheck,
-    queryListColCheck,
     queryMaybeRowCheck,
     queryMaybeColCheck,
     queryOneRowCheck,
@@ -322,16 +321,6 @@ gqueryListCheck conn sql check = do
             sql
           }
     Right result -> pure result
-
-queryListColCheck ::
-  forall a e r.
-  (Sqlite.FromField a, SqliteExceptionReason e, HasCallStack) =>
-  Connection ->
-  Sql ->
-  ([a] -> Either e r) ->
-  IO r
-queryListColCheck conn s check =
-  queryListRowCheck conn s (coerce @([a] -> Either e r) @([Sqlite.Only a] -> Either e r) check)
 
 queryMaybeRowCheck ::
   (Sqlite.FromRow a, SqliteExceptionReason e, HasCallStack) =>

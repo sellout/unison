@@ -301,12 +301,6 @@ referent2to1 lookupCT = \case
   V2.Ref r -> pure $ V1.Ref (reference2to1 r)
   V2.Con r i -> V1.Con (V1.ConstructorReference (reference2to1 r) (fromIntegral i)) <$> lookupCT r
 
--- | Like referent2to1, but uses the provided constructor type directly
-referent2to1UsingCT :: V2.ConstructorType -> V2.Referent -> V1.Referent
-referent2to1UsingCT ct = \case
-  V2.Ref r -> V1.Ref (reference2to1 r)
-  V2.Con r i -> V1.Con (V1.ConstructorReference (reference2to1 r) (fromIntegral i)) (constructorType2to1 ct)
-
 referent1to2 :: V1.Referent -> V2.Referent
 referent1to2 = \case
   V1.Ref r -> V2.Ref $ reference1to2 r
@@ -322,16 +316,6 @@ referentid2to1 lookupCT = \case
   V2.RefId r -> pure $ V1.RefId (referenceid2to1 r)
   V2.ConId r i ->
     V1.ConId (V1.ConstructorReference (referenceid2to1 r) (fromIntegral i)) <$> lookupCT (V2.ReferenceDerived r)
-
-constructorType1to2 :: CT.ConstructorType -> V2.ConstructorType
-constructorType1to2 = \case
-  CT.Data -> V2.DataConstructor
-  CT.Effect -> V2.EffectConstructor
-
-constructorType2to1 :: V2.ConstructorType -> CT.ConstructorType
-constructorType2to1 = \case
-  V2.DataConstructor -> CT.Data
-  V2.EffectConstructor -> CT.Effect
 
 ttype2to1 :: V2.Term.Type V2.Symbol -> V1.Type.Type V1.Symbol Ann
 ttype2to1 = type2to1' reference2to1

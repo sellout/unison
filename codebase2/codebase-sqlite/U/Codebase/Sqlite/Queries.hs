@@ -38,7 +38,6 @@ module U.Codebase.Sqlite.Queries
 
     -- * hash_object table
     saveHashObject,
-    expectHashIdsForObject,
     hashIdWithVersionForObject,
     loadObjectIdForPrimaryHashId,
     expectObjectIdForPrimaryHashId,
@@ -305,7 +304,6 @@ import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as List.NonEmpty
-import Data.List.NonEmpty qualified as Nel
 import Data.Map qualified as Map
 import Data.Map.NonEmpty (NEMap)
 import Data.Map.NonEmpty qualified as NEMap
@@ -933,13 +931,6 @@ expectPrimaryHash32ByObjectId oId =
       FROM hash INNER JOIN object ON object.primary_hash_id = hash.id
       WHERE object.id = :oId
     |]
-
-expectHashIdsForObject :: ObjectId -> Transaction (NonEmpty HashId)
-expectHashIdsForObject oId = do
-  -- sql1 (Only oId)
-  primaryHashId <- queryOneCol [sql| SELECT primary_hash_id FROM object WHERE id = :oId |]
-  hashIds <- queryListCol [sql| SELECT hash_id FROM hash_object WHERE object_id = :oId |]
-  pure $ primaryHashId Nel.:| filter (/= primaryHashId) hashIds
 
 hashIdWithVersionForObject :: ObjectId -> Transaction [(HashId, HashVersion)]
 hashIdWithVersionForObject oId =

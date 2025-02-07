@@ -95,12 +95,6 @@ module U.Codebase.Sqlite.Operations
     expectDbBranchByCausalHashId,
     namespaceStatsForDbBranch,
 
-    -- * reference conversions
-    c2sTextReference,
-    s2cTextReference,
-    c2sTextReferent,
-    s2cTextReferent,
-
     -- * somewhat unexpectedly unused definitions
     c2sReferenceId,
     c2sReferentId,
@@ -111,7 +105,6 @@ module U.Codebase.Sqlite.Operations
     Q.s2cDecl,
     declReferencesByPrefix,
     namespaceHashesByPrefix,
-    derivedDependencies,
 
     -- * internal stuff that probably need not be exported, but the 1->2 migration needs it
     BranchV (..),
@@ -274,14 +267,8 @@ loadBranchAtPath rootCausalHash path =
 c2sReference :: C.Reference -> Transaction S.Reference
 c2sReference = bitraverse Q.saveText Q.expectObjectIdForPrimaryHash
 
-c2sTextReference :: C.Reference -> S.TextReference
-c2sTextReference = bimap id H.toBase32Hex
-
 s2cReference :: S.Reference -> Transaction C.Reference
 s2cReference = bitraverse Q.expectText Q.expectPrimaryHashByObjectId
-
-s2cTextReference :: S.TextReference -> C.Reference
-s2cTextReference = bimap id H.fromBase32Hex
 
 c2sReferenceId :: C.Reference.Id -> Transaction S.Reference.Id
 c2sReferenceId = C.Reference.idH Q.expectObjectIdForPrimaryHash
@@ -301,17 +288,11 @@ c2hReference = bitraverse (MaybeT . Q.loadTextId) (MaybeT . Q.loadHashIdByHash)
 s2cReferent :: S.Referent -> Transaction C.Referent
 s2cReferent = bitraverse s2cReference s2cReference
 
-s2cTextReferent :: S.TextReferent -> C.Referent
-s2cTextReferent = bimap s2cTextReference s2cTextReference
-
 s2cReferentId :: S.Referent.Id -> Transaction C.Referent.Id
 s2cReferentId = bitraverse Q.expectPrimaryHashByObjectId Q.expectPrimaryHashByObjectId
 
 c2sReferent :: C.Referent -> Transaction S.Referent
 c2sReferent = bitraverse c2sReference c2sReference
-
-c2sTextReferent :: C.Referent -> S.TextReferent
-c2sTextReferent = bimap c2sTextReference c2sTextReference
 
 c2sReferentId :: C.Referent.Id -> Transaction S.Referent.Id
 c2sReferentId = bitraverse Q.expectObjectIdForPrimaryHash Q.expectObjectIdForPrimaryHash
@@ -1148,14 +1129,6 @@ dependentsOfComponent h = do
   sIds :: [S.Reference.Id] <- Q.getDependentsForDependencyComponent oId
   cIds <- traverse s2cReferenceId sIds
   pure $ Set.fromList cIds
-
--- | returns empty set for unknown inputs; doesn't distinguish between term and decl
-derivedDependencies :: C.Reference.Id -> Transaction (Set C.Reference.Id)
-derivedDependencies cid = do
-  sid <- c2sReferenceId cid
-  sids <- Q.getDependencyIdsForDependent sid
-  cids <- traverse s2cReferenceId sids
-  pure $ Set.fromList cids
 
 -- | Looks up statistics for a given branch, if none exist, we compute them and save them
 -- then return them.

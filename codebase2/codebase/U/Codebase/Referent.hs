@@ -14,11 +14,6 @@ import Unison.Prelude
 import Unison.ShortHash (ShortHash)
 import Unison.ShortHash qualified as SH
 
-data ConstructorType
-  = DataConstructor
-  | EffectConstructor
-  deriving (Show, Eq, Ord)
-
 type Referent = Referent' Reference Reference
 
 type ReferentH = Referent' (Reference' Text (Maybe Hash)) (Reference' Text Hash)
