@@ -87,7 +87,6 @@ import Unison.Prelude
 import Unison.PrettyTerminal qualified as PT
 import Unison.Project (defaultBranchName)
 import Unison.Runtime.Interface qualified as RTI
-import Unison.Server.Backend qualified as Backend
 import Unison.Server.CodebaseServer qualified as Server
 import Unison.Symbol (Symbol)
 import Unison.Util.Pretty qualified as P
@@ -334,7 +333,6 @@ main version = do
               mcpServerConfig <- MCP.initServer theCodebase runtime sbRuntime (Just currentDir) ucmVersion authenticatedHTTPClient
               Server.startServer
                 isTest
-                Backend.BackendEnv
                 codebaseServerOpts
                 sbRuntime
                 theCodebase

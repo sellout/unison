@@ -61,7 +61,6 @@ import Unison.Prelude
 import Unison.PrettyTerminal
 import Unison.Project (ProjectAndBranch (..), ProjectAndBranchNames (ProjectAndBranchNames'Unambiguous))
 import Unison.Runtime.Interface qualified as RTI
-import Unison.Server.Backend qualified as Backend
 import Unison.Server.CodebaseServer qualified as Server
 import Unison.Sqlite qualified as Sqlite
 import Unison.Symbol (Symbol)
@@ -109,7 +108,6 @@ withRunner isTest verbosity ucmVersion action = do
       mcpServerConfig <- MCP.initServer codebase runtime sbRuntime workDir ucmVersion authenticatedHTTPClient
       Server.startServer
         isTest
-        Backend.BackendEnv
         Server.defaultCodebaseServerOpts
         runtime
         codebase

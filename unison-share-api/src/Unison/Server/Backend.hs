@@ -7,7 +7,6 @@ module Unison.Server.Backend
     Backend (..),
     ShallowListEntry (..),
     listEntryName,
-    BackendEnv (..),
     TermEntry (..),
     TypeEntry (..),
     FoundRef (..),
@@ -246,17 +245,15 @@ data BackendError
   | ProjectBranchNameNotFound ProjectName ProjectBranchName
   deriving stock (Show)
 
-data BackendEnv = BackendEnv
-
-newtype Backend m a = Backend {runBackend :: ReaderT BackendEnv (ExceptT BackendError m) a}
-  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadReader BackendEnv, MonadError BackendError)
+newtype Backend m a = Backend {runBackend :: ExceptT BackendError m a}
+  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadError BackendError)
 
 instance MonadTrans Backend where
-  lift m = Backend (lift . lift $ m)
+  lift = Backend . lift
 
 hoistBackend :: (forall x. m x -> n x) -> Backend m a -> Backend n a
 hoistBackend f (Backend m) =
-  Backend (mapReaderT (mapExceptT f) m)
+  Backend (mapExceptT f m)
 
 loadReferentType ::
   Codebase m Symbol Ann ->

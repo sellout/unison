@@ -99,7 +99,7 @@ import Unison.PrettyPrintEnvDecl (PrettyPrintEnvDecl)
 import Unison.PrettyPrintEnvDecl qualified as PPED
 import Unison.Project (ProjectAndBranch (..), ProjectBranchName, ProjectName)
 import Unison.Runtime (Runtime)
-import Unison.Server.Backend (Backend, BackendEnv, runBackend)
+import Unison.Server.Backend (Backend, runBackend)
 import Unison.Server.Backend qualified as Backend
 import Unison.Server.Backend.DefinitionDiff qualified as DefinitionDiff
 import Unison.Server.Errors (backendError)
@@ -390,7 +390,6 @@ appAPI :: Proxy AppAPI
 appAPI = Proxy
 
 app ::
-  BackendEnv ->
   Runtime Symbol ->
   Codebase IO Symbol Ann ->
   FilePath ->
@@ -398,8 +397,8 @@ app ::
   Maybe String ->
   MCPServer ->
   Application
-app env rt codebase uiPath expectedToken allowCorsHost mcpServer =
-  corsPolicy allowCorsHost $ serve appAPI $ server env rt codebase uiPath expectedToken mcpServer
+app rt codebase uiPath expectedToken allowCorsHost mcpServer =
+  corsPolicy allowCorsHost $ serve appAPI $ server rt codebase uiPath expectedToken mcpServer
 
 data Waiter a = Waiter
   { notify :: a -> IO (),
@@ -452,14 +451,13 @@ defaultCodebaseServerOpts =
 -- The auth token required for accessing the server is passed to the function k
 startServer ::
   Bool ->
-  BackendEnv ->
   CodebaseServerOpts ->
   Runtime Symbol ->
   Codebase IO Symbol Ann ->
   MCPServer ->
   (Maybe BaseUrl -> IO a) ->
   IO a
-startServer isTest env opts rt codebase mcpServer onStart = do
+startServer isTest opts rt codebase mcpServer onStart = do
   -- the `canonicalizePath` resolves symlinks
   exePath <- canonicalizePath =<< getExecutablePath
   envUI <- canonicalizePath $ fromMaybe (FilePath.takeDirectory exePath </> "ui") (codebaseUIPath opts)
@@ -471,7 +469,7 @@ startServer isTest env opts rt codebase mcpServer onStart = do
         defaultSettings
           & setPort (fromMaybe 5858 $ port opts)
           & (setHost . fromString) (fromMaybe "127.0.0.1" $ host opts)
-  let app' = app env rt codebase envUI token (allowCorsHost opts) mcpServer
+  let app' = app rt codebase envUI token (allowCorsHost opts) mcpServer
   case port opts of
     Nothing -> withPort settings baseUrl app' 5858
     Just p -> withPort settings baseUrl app' p
@@ -562,25 +560,24 @@ corsPolicy allowCorsHost =
               }
 
 server ::
-  BackendEnv ->
   Runtime Symbol ->
   Codebase IO Symbol Ann ->
   FilePath ->
   Strict.ByteString ->
   MCPServer ->
   Server AppAPI
-server backendEnv rt codebase uiPath expectedToken mcpServer =
+server rt codebase uiPath expectedToken mcpServer =
   serveDirectoryWebApp (uiPath </> "static")
     :<|> hoistWithAuth serverAPI expectedToken serveServer
   where
     serveServer :: Server ServerAPI
     serveServer =
       serveUI uiPath
-        :<|> serveUnisonAndDocs backendEnv rt codebase
+        :<|> serveUnisonAndDocs rt codebase
         :<|> mcpServer
 
-serveUnisonAndDocs :: BackendEnv -> Runtime Symbol -> Codebase IO Symbol Ann -> Server UnisonAndDocsAPI
-serveUnisonAndDocs env rt codebase = serveUnisonLocal env codebase rt :<|> serveOpenAPI :<|> Tagged serveDocs
+serveUnisonAndDocs :: Runtime Symbol -> Codebase IO Symbol Ann -> Server UnisonAndDocsAPI
+serveUnisonAndDocs rt codebase = serveUnisonLocal codebase rt :<|> serveOpenAPI :<|> Tagged serveDocs
 
 serveDocs :: Application
 serveDocs _ respond = respond $ responseLBS ok200 [plain] docsBS
@@ -691,14 +688,13 @@ serveProjectsAPI codebase rt =
          )
 
 serveUnisonLocal ::
-  BackendEnv ->
   Codebase IO Symbol Ann ->
   Runtime Symbol ->
   Server UnisonLocalAPI
-serveUnisonLocal env codebase rt =
-  hoistServer (Proxy @UnisonLocalAPI) (backendHandler env) $
+serveUnisonLocal codebase rt =
+  hoistServer (Proxy @UnisonLocalAPI) backendHandler $
     serveProjectsAPI codebase rt :<|> (setCacheControl <$> ucmServer codebase)
 
-backendHandler :: BackendEnv -> Backend IO a -> Handler a
-backendHandler env m =
-  Handler $ withExceptT backendError (runReaderT (runBackend m) env)
+backendHandler :: Backend IO a -> Handler a
+backendHandler m =
+  Handler $ withExceptT backendError (runBackend m)
