@@ -1,0 +1,86 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">U.Codebase.Sqlite.HistoryComment</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="U.Codebase.Sqlite.HistoryComment.html#HistoryComment"><span class="hs-identifier">HistoryComment</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">data</span><span> </span><span id="HistoryComment"><span class="annot"><a href="U.Codebase.Sqlite.HistoryComment.html#HistoryComment"><span class="hs-identifier hs-var">HistoryComment</span></a></span></span><span> </span><span id="local-6989586621679610644"><span class="annot"><a href="#local-6989586621679610644"><span class="hs-identifier hs-type">causal</span></a></span></span><span> </span><span id="local-6989586621679610645"><span class="annot"><a href="#local-6989586621679610645"><span class="hs-identifier hs-type">id</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HistoryComment"><span class="annot"><a href="U.Codebase.Sqlite.HistoryComment.html#HistoryComment"><span class="hs-identifier hs-var">HistoryComment</span></a></span></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aauthor%3AHistoryComment"><span class="annot"><span class="annottext">forall causal id. HistoryComment causal id -&gt; Text
+</span><a href="U.Codebase.Sqlite.HistoryComment.html#%24sel%3Aauthor%3AHistoryComment"><span class="hs-identifier hs-var hs-var">author</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span>
+</span><span id="line-7"></span><span>    </span><span id="%24sel%3Asubject%3AHistoryComment"><span class="annot"><span class="annottext">forall causal id. HistoryComment causal id -&gt; Text
+</span><a href="U.Codebase.Sqlite.HistoryComment.html#%24sel%3Asubject%3AHistoryComment"><span class="hs-identifier hs-var hs-var">subject</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span>
+</span><span id="line-8"></span><span>    </span><span id="%24sel%3Acontent%3AHistoryComment"><span class="annot"><span class="annottext">forall causal id. HistoryComment causal id -&gt; Text
+</span><a href="U.Codebase.Sqlite.HistoryComment.html#%24sel%3Acontent%3AHistoryComment"><span class="hs-identifier hs-var hs-var">content</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span>
+</span><span id="line-9"></span><span>    </span><span id="%24sel%3Acausal%3AHistoryComment"><span class="annot"><span class="annottext">forall causal id. HistoryComment causal id -&gt; causal
+</span><a href="U.Codebase.Sqlite.HistoryComment.html#%24sel%3Acausal%3AHistoryComment"><span class="hs-identifier hs-var hs-var">causal</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679610644"><span class="hs-identifier hs-type">causal</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-10"></span><span>    </span><span id="%24sel%3AcommentId%3AHistoryComment"><span class="annot"><span class="annottext">forall causal id. HistoryComment causal id -&gt; id
+</span><a href="U.Codebase.Sqlite.HistoryComment.html#%24sel%3AcommentId%3AHistoryComment"><span class="hs-identifier hs-var hs-var">commentId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679610645"><span class="hs-identifier hs-type">id</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679610685"><span id="local-6989586621679610695"><span id="local-6989586621679610699"><span class="annot"><span class="annottext">Int -&gt; HistoryComment causal id -&gt; ShowS
+[HistoryComment causal id] -&gt; ShowS
+HistoryComment causal id -&gt; String
+(Int -&gt; HistoryComment causal id -&gt; ShowS)
+-&gt; (HistoryComment causal id -&gt; String)
+-&gt; ([HistoryComment causal id] -&gt; ShowS)
+-&gt; Show (HistoryComment causal id)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall causal id.
+(Show causal, Show id) =&gt;
+Int -&gt; HistoryComment causal id -&gt; ShowS
+forall causal id.
+(Show causal, Show id) =&gt;
+[HistoryComment causal id] -&gt; ShowS
+forall causal id.
+(Show causal, Show id) =&gt;
+HistoryComment causal id -&gt; String
+$cshowsPrec :: forall causal id.
+(Show causal, Show id) =&gt;
+Int -&gt; HistoryComment causal id -&gt; ShowS
+showsPrec :: Int -&gt; HistoryComment causal id -&gt; ShowS
+$cshow :: forall causal id.
+(Show causal, Show id) =&gt;
+HistoryComment causal id -&gt; String
+show :: HistoryComment causal id -&gt; String
+$cshowList :: forall causal id.
+(Show causal, Show id) =&gt;
+[HistoryComment causal id] -&gt; ShowS
+showList :: [HistoryComment causal id] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679610705"><span id="local-6989586621679610713"><span class="annot"><span class="annottext">HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+(HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool)
+-&gt; (HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool)
+-&gt; Eq (HistoryComment causal id)
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+forall causal id.
+(Eq causal, Eq id) =&gt;
+HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+$c== :: forall causal id.
+(Eq causal, Eq id) =&gt;
+HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+== :: HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+$c/= :: forall causal id.
+(Eq causal, Eq id) =&gt;
+HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+/= :: HistoryComment causal id -&gt; HistoryComment causal id -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679610718"><span id="local-6989586621679610720"><span class="annot"><span class="annottext">(forall a b.
+ (a -&gt; b) -&gt; HistoryComment causal a -&gt; HistoryComment causal b)
+-&gt; (forall a b.
+    a -&gt; HistoryComment causal b -&gt; HistoryComment causal a)
+-&gt; Functor (HistoryComment causal)
+forall a b. a -&gt; HistoryComment causal b -&gt; HistoryComment causal a
+forall a b.
+(a -&gt; b) -&gt; HistoryComment causal a -&gt; HistoryComment causal b
+forall causal a b.
+a -&gt; HistoryComment causal b -&gt; HistoryComment causal a
+forall causal a b.
+(a -&gt; b) -&gt; HistoryComment causal a -&gt; HistoryComment causal b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall causal a b.
+(a -&gt; b) -&gt; HistoryComment causal a -&gt; HistoryComment causal b
+fmap :: forall a b.
+(a -&gt; b) -&gt; HistoryComment causal a -&gt; HistoryComment causal b
+$c&lt;$ :: forall causal a b.
+a -&gt; HistoryComment causal b -&gt; HistoryComment causal a
+&lt;$ :: forall a b. a -&gt; HistoryComment causal b -&gt; HistoryComment causal a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span></pre></body></html>

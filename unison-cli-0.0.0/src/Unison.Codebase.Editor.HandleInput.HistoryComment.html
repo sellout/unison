@@ -1,0 +1,528 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unison.Codebase.Editor.HandleInput.HistoryComment</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#handleHistoryComment"><span class="hs-identifier">handleHistoryComment</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.IO</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.RawString.QQ</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">r</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">U.Codebase.Config</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Config</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">U.Codebase.Sqlite.HistoryComment</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">HistoryComment</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">U.Codebase.Sqlite.Queries</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Q</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Cli.Monad.html"><span class="hs-identifier">Unison.Cli.Monad</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unison.Cli.Monad.html#Cli"><span class="hs-identifier">Cli</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Cli.Monad.html"><span class="hs-identifier">Unison.Cli.Monad</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Cli</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Cli.MonadUtils.html"><span class="hs-identifier">Unison.Cli.MonadUtils</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Cli</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Cli.ProjectUtils.html"><span class="hs-identifier">Unison.Cli.ProjectUtils</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">ProjectUtils</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Unison.Codebase.Branch</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Branch</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Codebase.Editor.Input.html"><span class="hs-identifier">Unison.Codebase.Editor.Input</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unison.Codebase.Editor.Input.html#BranchId2"><span class="hs-identifier">BranchId2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.Codebase.Editor.Output.html"><span class="hs-identifier">Unison.Codebase.Editor.Output</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unison.Codebase.Editor.Output.html#Output"><span class="hs-identifier">Output</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Unison.Codebase.Path</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Path</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unison.CommandLine.BranchRelativePath.html"><span class="hs-identifier">Unison.CommandLine.BranchRelativePath</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unison.CommandLine.BranchRelativePath.html#BranchRelativePath"><span class="hs-identifier">BranchRelativePath</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Unison.Core.Project</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ProjectAndBranch</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Unison.Prelude</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">UnliftIO</span></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">UnliftIO.Directory</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">findExecutable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">UnliftIO.Environment</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Env</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">UnliftIO.Process</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Proc</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#handleHistoryComment"><span class="hs-identifier hs-type">handleHistoryComment</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Unison.Codebase.Editor.Input.html#BranchId2"><span class="hs-identifier hs-type">BranchId2</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Unison.Cli.Monad.html#Cli"><span class="hs-identifier hs-type">Cli</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span id="handleHistoryComment"><span class="annot"><span class="annottext">handleHistoryComment :: Maybe BranchId2 -&gt; Cli ()
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#handleHistoryComment"><span class="hs-identifier hs-var hs-var">handleHistoryComment</span></a></span></span><span> </span><span id="local-6989586621681388973"><span class="annot"><span class="annottext">Maybe BranchId2
+</span><a href="#local-6989586621681388973"><span class="hs-identifier hs-var">mayThingToAnnotate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621681388974"><span class="annot"><span class="annottext">AuthorName
+</span><a href="#local-6989586621681388974"><span class="hs-identifier hs-var">authorName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="annottext">Transaction (Maybe AuthorName) -&gt; Cli (Maybe AuthorName)
+forall a. Transaction a -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransaction"><span class="hs-identifier hs-var">Cli.runTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">Transaction (Maybe AuthorName)
+</span><span class="hs-identifier hs-var">Q.getAuthorName</span></span><span> </span><span class="annot"><span class="annottext">Cli (Maybe AuthorName)
+-&gt; (Maybe AuthorName -&gt; Cli AuthorName) -&gt; Cli AuthorName
+forall a b. Cli a -&gt; (a -&gt; Cli b) -&gt; Cli b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-29"></span><span>      </span><span class="annot"><span class="annottext">Maybe AuthorName
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Output -&gt; Cli AuthorName
+forall a. Output -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#returnEarly"><span class="hs-identifier hs-var">Cli.returnEarly</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli AuthorName) -&gt; Output -&gt; Cli AuthorName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Output
+</span><a href="Unison.Codebase.Editor.Output.html#AuthorNameRequired"><span class="hs-identifier hs-var">AuthorNameRequired</span></a></span><span>
+</span><span id="line-30"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681388979"><span class="annot"><span class="annottext">AuthorName
+</span><a href="#local-6989586621681388979"><span class="hs-identifier hs-var">authorName</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AuthorName -&gt; Cli AuthorName
+forall a. a -&gt; Cli a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">AuthorName
+</span><a href="#local-6989586621681388979"><span class="hs-identifier hs-var">authorName</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621681388980"><span class="annot"><span class="annottext">CausalHash
+</span><a href="#local-6989586621681388980"><span class="hs-identifier hs-var">causalHash</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe BranchId2
+</span><a href="#local-6989586621681388973"><span class="hs-identifier hs-var">mayThingToAnnotate</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="annottext">Maybe BranchId2
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><span class="annottext">Branch IO -&gt; CausalHash
+forall (m :: * -&gt; *). Branch m -&gt; CausalHash
+</span><span class="hs-identifier hs-var">Branch.headHash</span></span><span> </span><span class="annot"><span class="annottext">(Branch IO -&gt; CausalHash) -&gt; Cli (Branch IO) -&gt; Cli CausalHash
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Cli (Branch IO)
+</span><a href="Unison.Cli.MonadUtils.html#getCurrentProjectRoot"><span class="hs-identifier hs-var">Cli.getCurrentProjectRoot</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681388984"><span class="annot"><span class="annottext">ShortCausalHash
+</span><a href="#local-6989586621681388984"><span class="hs-identifier hs-var">sch</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-35"></span><span>      </span><span class="annot"><span class="annottext">((forall void. Output -&gt; Transaction void)
+ -&gt; Transaction CausalHash)
+-&gt; Cli CausalHash
+forall a.
+((forall void. Output -&gt; Transaction void) -&gt; Transaction a)
+-&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransactionWithRollback"><span class="hs-identifier hs-var">Cli.runTransactionWithRollback</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681388986"><span class="annot"><span class="annottext">forall void. Output -&gt; Transaction void
+</span><a href="#local-6989586621681388986"><span class="hs-identifier hs-var">rollback</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(forall void. Output -&gt; Transaction void)
+-&gt; ShortCausalHash -&gt; Transaction CausalHash
+</span><a href="Unison.Cli.MonadUtils.html#resolveShortCausalHashToCausalHash"><span class="hs-identifier hs-var">Cli.resolveShortCausalHashToCausalHash</span></a></span><span> </span><span class="annot"><span class="annottext">Output -&gt; Transaction void
+forall void. Output -&gt; Transaction void
+</span><a href="#local-6989586621681388986"><span class="hs-identifier hs-var">rollback</span></a></span><span> </span><span class="annot"><span class="annottext">ShortCausalHash
+</span><a href="#local-6989586621681388984"><span class="hs-identifier hs-var">sch</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681388988"><span class="annot"><span class="annottext">BranchRelativePath
+</span><a href="#local-6989586621681388988"><span class="hs-identifier hs-var">brp</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">BranchRelativePath
+</span><a href="#local-6989586621681388988"><span class="hs-identifier hs-var">brp</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-37"></span><span>      </span><span class="annot"><a href="Unison.CommandLine.BranchRelativePath.html#BranchPathInCurrentProject"><span class="hs-identifier hs-type">BranchPathInCurrentProject</span></a></span><span> </span><span id="local-6989586621681388990"><span class="annot"><span class="annottext">ProjectBranchName
+</span><a href="#local-6989586621681388990"><span class="hs-identifier hs-var">projectBranchName</span></a></span></span><span> </span><span id="local-6989586621681388991"><span class="annot"><span class="annottext">Absolute
+</span><a href="#local-6989586621681388991"><span class="hs-identifier hs-var">path</span></a></span></span><span>
+</span><span id="line-38"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Absolute
+</span><a href="#local-6989586621681388991"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">Absolute -&gt; Absolute -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Absolute
+</span><span class="hs-identifier hs-var">Path.Root</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-39"></span><span>            </span><span id="local-6989586621681388993"><span class="annot"><span class="annottext">ProjectAndBranch Project ProjectBranch
+</span><a href="#local-6989586621681388993"><span class="hs-identifier hs-var">pab</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ProjectAndBranch (Maybe ProjectName) (Maybe ProjectBranchName)
+-&gt; Cli (ProjectAndBranch Project ProjectBranch)
+</span><a href="Unison.Cli.ProjectUtils.html#resolveProjectBranch"><span class="hs-identifier hs-var">ProjectUtils.resolveProjectBranch</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe ProjectName
+-&gt; Maybe ProjectBranchName
+-&gt; ProjectAndBranch (Maybe ProjectName) (Maybe ProjectBranchName)
+forall a b. a -&gt; b -&gt; ProjectAndBranch a b
+</span><span class="hs-identifier hs-var">ProjectAndBranch</span></span><span> </span><span class="annot"><span class="annottext">Maybe ProjectName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProjectBranchName -&gt; Maybe ProjectBranchName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">ProjectBranchName
+</span><a href="#local-6989586621681388990"><span class="hs-identifier hs-var">projectBranchName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>            </span><span class="annot"><span class="annottext">Transaction CausalHash -&gt; Cli CausalHash
+forall a. Transaction a -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransaction"><span class="hs-identifier hs-var">Cli.runTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">(Transaction CausalHash -&gt; Cli CausalHash)
+-&gt; Transaction CausalHash -&gt; Cli CausalHash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProjectBranch -&gt; Transaction CausalHash
+</span><a href="Unison.Cli.ProjectUtils.html#getProjectBranchCausalHash"><span class="hs-identifier hs-var">ProjectUtils.getProjectBranchCausalHash</span></a></span><span> </span><span class="annot"><span class="annottext">ProjectAndBranch Project ProjectBranch
+</span><a href="#local-6989586621681388993"><span class="hs-identifier hs-var">pab</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">branch</span><span>
+</span><span id="line-41"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Output -&gt; Cli CausalHash
+forall a. Output -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#returnEarly"><span class="hs-identifier hs-var">Cli.returnEarly</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli CausalHash) -&gt; Output -&gt; Cli CausalHash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Output
+</span><a href="Unison.Codebase.Editor.Output.html#InvalidCommentTarget"><span class="hs-identifier hs-var">InvalidCommentTarget</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;commenting on paths is currently unsupported.&quot;</span></span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><a href="Unison.CommandLine.BranchRelativePath.html#QualifiedBranchPath"><span class="hs-identifier hs-type">QualifiedBranchPath</span></a></span><span> </span><span id="local-6989586621681388999"><span class="annot"><span class="annottext">ProjectName
+</span><a href="#local-6989586621681388999"><span class="hs-identifier hs-var">projectName</span></a></span></span><span> </span><span id="local-6989586621681389000"><span class="annot"><span class="annottext">ProjectBranchName
+</span><a href="#local-6989586621681389000"><span class="hs-identifier hs-var">projectBranchName</span></a></span></span><span> </span><span id="local-6989586621681389001"><span class="annot"><span class="annottext">Absolute
+</span><a href="#local-6989586621681389001"><span class="hs-identifier hs-var">path</span></a></span></span><span>
+</span><span id="line-43"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Absolute
+</span><a href="#local-6989586621681389001"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">Absolute -&gt; Absolute -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Absolute
+</span><span class="hs-identifier hs-var">Path.Root</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-44"></span><span>            </span><span id="local-6989586621681389002"><span class="annot"><span class="annottext">ProjectAndBranch Project ProjectBranch
+</span><a href="#local-6989586621681389002"><span class="hs-identifier hs-var">pab</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ProjectAndBranch (Maybe ProjectName) (Maybe ProjectBranchName)
+-&gt; Cli (ProjectAndBranch Project ProjectBranch)
+</span><a href="Unison.Cli.ProjectUtils.html#resolveProjectBranch"><span class="hs-identifier hs-var">ProjectUtils.resolveProjectBranch</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe ProjectName
+-&gt; Maybe ProjectBranchName
+-&gt; ProjectAndBranch (Maybe ProjectName) (Maybe ProjectBranchName)
+forall a b. a -&gt; b -&gt; ProjectAndBranch a b
+</span><span class="hs-identifier hs-var">ProjectAndBranch</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProjectName -&gt; Maybe ProjectName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">ProjectName
+</span><a href="#local-6989586621681388999"><span class="hs-identifier hs-var">projectName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProjectBranchName -&gt; Maybe ProjectBranchName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">ProjectBranchName
+</span><a href="#local-6989586621681389000"><span class="hs-identifier hs-var">projectBranchName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>            </span><span class="annot"><span class="annottext">Transaction CausalHash -&gt; Cli CausalHash
+forall a. Transaction a -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransaction"><span class="hs-identifier hs-var">Cli.runTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">(Transaction CausalHash -&gt; Cli CausalHash)
+-&gt; Transaction CausalHash -&gt; Cli CausalHash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ProjectBranch -&gt; Transaction CausalHash
+</span><a href="Unison.Cli.ProjectUtils.html#getProjectBranchCausalHash"><span class="hs-identifier hs-var">ProjectUtils.getProjectBranchCausalHash</span></a></span><span> </span><span class="annot"><span class="annottext">ProjectAndBranch Project ProjectBranch
+</span><a href="#local-6989586621681389002"><span class="hs-identifier hs-var">pab</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">branch</span><span>
+</span><span id="line-46"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Output -&gt; Cli CausalHash
+forall a. Output -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#returnEarly"><span class="hs-identifier hs-var">Cli.returnEarly</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli CausalHash) -&gt; Output -&gt; Cli CausalHash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Output
+</span><a href="Unison.Codebase.Editor.Output.html#InvalidCommentTarget"><span class="hs-identifier hs-var">InvalidCommentTarget</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;commenting on paths is currently unsupported.&quot;</span></span><span>
+</span><span id="line-47"></span><span>      </span><span class="annot"><a href="Unison.CommandLine.BranchRelativePath.html#UnqualifiedPath"><span class="hs-identifier hs-type">UnqualifiedPath</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Output -&gt; Cli CausalHash
+forall a. Output -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#returnEarly"><span class="hs-identifier hs-var">Cli.returnEarly</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli CausalHash) -&gt; Output -&gt; Cli CausalHash
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Output
+</span><a href="Unison.Codebase.Editor.Output.html#InvalidCommentTarget"><span class="hs-identifier hs-var">InvalidCommentTarget</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;commenting on paths is currently unsupported.&quot;</span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681389004"><span class="annot"><span class="annottext">CausalHashId
+</span><a href="#local-6989586621681389004"><span class="hs-identifier hs-var">causalHashId</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681389005"><span class="annot"><span class="annottext">Maybe (HistoryComment CausalHashId HistoryCommentId)
+</span><a href="#local-6989586621681389005"><span class="hs-identifier hs-var">mayHistoryComment</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Transaction
+  (CausalHashId,
+   Maybe (HistoryComment CausalHashId HistoryCommentId))
+-&gt; Cli
+     (CausalHashId,
+      Maybe (HistoryComment CausalHashId HistoryCommentId))
+forall a. Transaction a -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransaction"><span class="hs-identifier hs-var">Cli.runTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">(Transaction
+   (CausalHashId,
+    Maybe (HistoryComment CausalHashId HistoryCommentId))
+ -&gt; Cli
+      (CausalHashId,
+       Maybe (HistoryComment CausalHashId HistoryCommentId)))
+-&gt; Transaction
+     (CausalHashId,
+      Maybe (HistoryComment CausalHashId HistoryCommentId))
+-&gt; Cli
+     (CausalHashId,
+      Maybe (HistoryComment CausalHashId HistoryCommentId))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621681389006"><span class="annot"><span class="annottext">CausalHashId
+</span><a href="#local-6989586621681389006"><span class="hs-identifier hs-var">causalHashId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CausalHash -&gt; Transaction CausalHashId
+</span><span class="hs-identifier hs-var">Q.expectCausalHashIdByCausalHash</span></span><span> </span><span class="annot"><span class="annottext">CausalHash
+</span><a href="#local-6989586621681388980"><span class="hs-identifier hs-var">causalHash</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621681389008"><span class="annot"><span class="annottext">Maybe (HistoryComment CausalHashId HistoryCommentId)
+</span><a href="#local-6989586621681389008"><span class="hs-identifier hs-var">mayExistingCommentInfo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CausalHashId
+-&gt; Transaction
+     (Maybe (HistoryComment CausalHashId HistoryCommentId))
+</span><span class="hs-identifier hs-var">Q.getLatestCausalComment</span></span><span> </span><span class="annot"><span class="annottext">CausalHashId
+</span><a href="#local-6989586621681389006"><span class="hs-identifier hs-var">causalHashId</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><span class="annottext">(CausalHashId,
+ Maybe (HistoryComment CausalHashId HistoryCommentId))
+-&gt; Transaction
+     (CausalHashId,
+      Maybe (HistoryComment CausalHashId HistoryCommentId))
+forall a. a -&gt; Transaction a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CausalHashId
+</span><a href="#local-6989586621681389006"><span class="hs-identifier hs-var">causalHashId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe (HistoryComment CausalHashId HistoryCommentId)
+</span><a href="#local-6989586621681389008"><span class="hs-identifier hs-var">mayExistingCommentInfo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681389010"><span class="annot"><span class="annottext">populatedMsg :: Text
+</span><a href="#local-6989586621681389010"><span class="hs-identifier hs-var hs-var">populatedMsg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Maybe Text -&gt; Text
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389012"><span class="hs-identifier hs-var">commentInstructions</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Text -&gt; Text) -&gt; Maybe Text -&gt; Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">HistoryComment</span></span><span> </span><span class="hs-special">{</span><span id="local-6989586621681389014"><span class="annot"><span class="annottext">Text
+subject :: Text
+$sel:subject:HistoryComment :: forall causal id. HistoryComment causal id -&gt; Text
+</span><a href="#local-6989586621681389014"><span class="hs-identifier hs-var hs-var">subject</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681389016"><span class="annot"><span class="annottext">Text
+content :: Text
+$sel:content:HistoryComment :: forall causal id. HistoryComment causal id -&gt; Text
+</span><a href="#local-6989586621681389016"><span class="hs-identifier hs-var hs-var">content</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (HistoryComment CausalHashId HistoryCommentId)
+</span><a href="#local-6989586621681389005"><span class="hs-identifier hs-var">mayHistoryComment</span></a></span><span>
+</span><span id="line-54"></span><span>        </span><span class="annot"><span class="annottext">Text -&gt; Maybe Text
+forall a. a -&gt; Maybe a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Maybe Text) -&gt; Text -&gt; Maybe Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; Text
+</span><span class="hs-identifier hs-var">Text.unlines</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389014"><span class="hs-identifier hs-var">subject</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389016"><span class="hs-identifier hs-var">content</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389012"><span class="hs-identifier hs-var">commentInstructions</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681389019"><span class="annot"><span class="annottext">Maybe (Text, Text)
+</span><a href="#local-6989586621681389019"><span class="hs-identifier hs-var">mayNewMessage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Maybe (Text, Text)) -&gt; Cli (Maybe (Text, Text))
+forall a. IO a -&gt; Cli a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Text -&gt; IO (Maybe (Text, Text))
+forall (m :: * -&gt; *).
+MonadUnliftIO m =&gt;
+Maybe Text -&gt; m (Maybe (Text, Text))
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editMessage"><span class="hs-identifier hs-var">editMessage</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Maybe Text
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389010"><span class="hs-identifier hs-var">populatedMsg</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe (Text, Text)
+</span><a href="#local-6989586621681389019"><span class="hs-identifier hs-var">mayNewMessage</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="annottext">Maybe (Text, Text)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Output -&gt; Cli ()
+</span><a href="Unison.Cli.Monad.html#respond"><span class="hs-identifier hs-var">Cli.respond</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli ()) -&gt; Output -&gt; Cli ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Output
+</span><a href="Unison.Codebase.Editor.Output.html#CommentAborted"><span class="hs-identifier hs-var">CommentAborted</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681389024"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389024"><span class="hs-identifier hs-var">subject</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681389025"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389025"><span class="hs-identifier hs-var">content</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-59"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681389026"><span class="annot"><span class="annottext">historyComment :: HistoryComment CausalHashId ()
+</span><a href="#local-6989586621681389026"><span class="hs-identifier hs-var hs-var">historyComment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HistoryComment</span></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:author:HistoryComment :: Text
+</span><span class="hs-identifier hs-var">author</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AuthorName -&gt; Text
+</span><span class="hs-identifier hs-var">Config.unAuthorName</span></span><span> </span><span class="annot"><span class="annottext">AuthorName
+</span><a href="#local-6989586621681388974"><span class="hs-identifier hs-var">authorName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+$sel:subject:HistoryComment :: Text
+subject :: Text
+</span><span class="hs-identifier hs-var hs-var">subject</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+$sel:content:HistoryComment :: Text
+content :: Text
+</span><span class="hs-identifier hs-var hs-var">content</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:commentId:HistoryComment :: ()
+</span><a href="#local-6989586621681389029"><span class="hs-identifier hs-var">commentId</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:causal:HistoryComment :: CausalHashId
+</span><a href="#local-6989586621681389030"><span class="hs-identifier hs-var">causal</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CausalHashId
+</span><a href="#local-6989586621681389004"><span class="hs-identifier hs-var">causalHashId</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-60"></span><span>      </span><span class="annot"><span class="annottext">Transaction () -&gt; Cli ()
+forall a. Transaction a -&gt; Cli a
+</span><a href="Unison.Cli.Monad.html#runTransaction"><span class="hs-identifier hs-var">Cli.runTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">(Transaction () -&gt; Cli ()) -&gt; Transaction () -&gt; Cli ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HistoryComment CausalHashId () -&gt; Transaction ()
+</span><span class="hs-identifier hs-var">Q.commentOnCausal</span></span><span> </span><span class="annot"><span class="annottext">HistoryComment CausalHashId ()
+</span><a href="#local-6989586621681389026"><span class="hs-identifier hs-var">historyComment</span></a></span><span>
+</span><span id="line-61"></span><span>      </span><span class="annot"><span class="annottext">Output -&gt; Cli ()
+</span><a href="Unison.Cli.Monad.html#respond"><span class="hs-identifier hs-var">Cli.respond</span></a></span><span> </span><span class="annot"><span class="annottext">(Output -&gt; Cli ()) -&gt; Output -&gt; Cli ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Output
+</span><a href="Unison.Codebase.Editor.Output.html#CommentedSuccessfully"><span class="hs-identifier hs-var">CommentedSuccessfully</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>    </span><span id="local-6989586621681389012"><span class="annot"><span class="annottext">commentInstructions :: Text
+</span><a href="#local-6989586621681389012"><span class="hs-identifier hs-var hs-var">commentInstructions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><span class="annottext">Text
+</span><span class="">[r|
+-- Enter your comment, then save and quit your editor to continue.
+-- Lines that start with '--' will be ignored.|]</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#unisonEditorEnvVar"><span class="hs-identifier hs-type">unisonEditorEnvVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-69"></span><span id="unisonEditorEnvVar"><span class="annot"><span class="annottext">unisonEditorEnvVar :: String
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#unisonEditorEnvVar"><span class="hs-identifier hs-var hs-var">unisonEditorEnvVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;UNISON_EDITOR&quot;</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editorEnvVar"><span class="hs-identifier hs-type">editorEnvVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-72"></span><span id="editorEnvVar"><span class="annot"><span class="annottext">editorEnvVar :: String
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editorEnvVar"><span class="hs-identifier hs-var hs-var">editorEnvVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;EDITOR&quot;</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span id="local-6989586621681388894"><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#getEditorProgram"><span class="hs-identifier hs-type">getEditorProgram</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681388894"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681388894"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-75"></span><span id="getEditorProgram"><span class="annot"><span class="annottext">getEditorProgram :: forall (m :: * -&gt; *). MonadIO m =&gt; m (Maybe String)
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#getEditorProgram"><span class="hs-identifier hs-var hs-var">getEditorProgram</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaybeT m String -&gt; m (Maybe String)
+forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">(MaybeT m String -&gt; m (Maybe String))
+-&gt; MaybeT m String -&gt; m (Maybe String)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; MaybeT m String
+forall {m :: * -&gt; *}. MonadIO m =&gt; String -&gt; MaybeT m String
+</span><a href="#local-6989586621681389056"><span class="hs-identifier hs-var">fromEnvVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#unisonEditorEnvVar"><span class="hs-identifier hs-var">unisonEditorEnvVar</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="annottext">MaybeT m String -&gt; MaybeT m String -&gt; MaybeT m String
+forall a. MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; MaybeT m String
+forall {m :: * -&gt; *}. MonadIO m =&gt; String -&gt; MaybeT m String
+</span><a href="#local-6989586621681389056"><span class="hs-identifier hs-var">fromEnvVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editorEnvVar"><span class="hs-identifier hs-var">editorEnvVar</span></a></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="annottext">MaybeT m String -&gt; MaybeT m String -&gt; MaybeT m String
+forall a. MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; MaybeT m String
+forall {m :: * -&gt; *}. MonadIO m =&gt; String -&gt; MaybeT m String
+</span><a href="#local-6989586621681389056"><span class="hs-identifier hs-var">fromEnvVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;VISUAL&quot;</span></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><span class="annottext">MaybeT m String -&gt; MaybeT m String -&gt; MaybeT m String
+forall a. MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe String) -&gt; MaybeT m String
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; m (Maybe String)
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; m (Maybe String)
+</span><span class="hs-identifier hs-var">findExecutable</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;nano&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><span class="annottext">MaybeT m String -&gt; MaybeT m String -&gt; MaybeT m String
+forall a. MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe String) -&gt; MaybeT m String
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; m (Maybe String)
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; m (Maybe String)
+</span><span class="hs-identifier hs-var">findExecutable</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;vi&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-82"></span><span>    </span><span id="local-6989586621681389056"><span class="annot"><span class="annottext">fromEnvVar :: String -&gt; MaybeT m String
+</span><a href="#local-6989586621681389056"><span class="hs-identifier hs-var hs-var">fromEnvVar</span></a></span></span><span> </span><span id="local-6989586621681389078"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389078"><span class="hs-identifier hs-var">var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-83"></span><span>      </span><span id="local-6989586621681389079"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389079"><span class="hs-identifier hs-var">progName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m (Maybe String) -&gt; MaybeT m String
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="annot"><span class="annottext">(m (Maybe String) -&gt; MaybeT m String)
+-&gt; m (Maybe String) -&gt; MaybeT m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; m (Maybe String)
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; m (Maybe String)
+</span><span class="hs-identifier hs-var">Env.lookupEnv</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389078"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-84"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; MaybeT m ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389079"><span class="hs-identifier hs-var">progName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>      </span><span class="annot"><span class="annottext">m (Maybe String) -&gt; MaybeT m String
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="annot"><span class="annottext">(m (Maybe String) -&gt; MaybeT m String)
+-&gt; m (Maybe String) -&gt; MaybeT m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; m (Maybe String)
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; m (Maybe String)
+</span><span class="hs-identifier hs-var">findExecutable</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389079"><span class="hs-identifier hs-var">progName</span></a></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | Trigger the user's preferred editing workflow to edit a message, using the provided message to pre-populate the editor.</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- Returns Nothing if the editor was closed with a non-zero exit code, or the message is empty.</span><span>
+</span><span id="line-89"></span><span id="local-6989586621681388893"><span class="annot"><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editMessage"><span class="hs-identifier hs-type">editMessage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadUnliftIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681388893"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681388893"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
+</span><span id="line-90"></span><span id="editMessage"><span class="annot"><span class="annottext">editMessage :: forall (m :: * -&gt; *).
+MonadUnliftIO m =&gt;
+Maybe Text -&gt; m (Maybe (Text, Text))
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#editMessage"><span class="hs-identifier hs-var hs-var">editMessage</span></a></span></span><span> </span><span id="local-6989586621681389118"><span class="annot"><span class="annottext">Maybe Text
+</span><a href="#local-6989586621681389118"><span class="hs-identifier hs-var">initialMessage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaybeT m (Text, Text) -&gt; m (Maybe (Text, Text))
+forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-91"></span><span>  </span><span id="local-6989586621681389119"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389119"><span class="hs-identifier hs-var">editorProg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m (Maybe String) -&gt; MaybeT m String
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe String)
+forall (m :: * -&gt; *). MonadIO m =&gt; m (Maybe String)
+</span><a href="Unison.Codebase.Editor.HandleInput.HistoryComment.html#getEditorProgram"><span class="hs-identifier hs-var">getEditorProgram</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="annot"><span class="annottext">m (Maybe (Text, Text)) -&gt; MaybeT m (Text, Text)
+forall (m :: * -&gt; *) a. m (Maybe a) -&gt; MaybeT m a
+</span><span class="hs-identifier hs-var">MaybeT</span></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (Text, Text)) -&gt; MaybeT m (Text, Text))
+-&gt; m (Maybe (Text, Text)) -&gt; MaybeT m (Text, Text)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+-&gt; (String -&gt; Handle -&gt; m (Maybe (Text, Text)))
+-&gt; m (Maybe (Text, Text))
+forall (m :: * -&gt; *) a.
+MonadUnliftIO m =&gt;
+String -&gt; (String -&gt; Handle -&gt; m a) -&gt; m a
+</span><span class="hs-identifier hs-var">UnliftIO.withSystemTempFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ucm-history-comment&quot;</span></span><span> </span><span class="annot"><span class="annottext">((String -&gt; Handle -&gt; m (Maybe (Text, Text)))
+ -&gt; m (Maybe (Text, Text)))
+-&gt; (String -&gt; Handle -&gt; m (Maybe (Text, Text)))
+-&gt; m (Maybe (Text, Text))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681389121"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389121"><span class="hs-identifier hs-var">tempFilePath</span></a></span></span><span> </span><span id="local-6989586621681389122"><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621681389122"><span class="hs-identifier hs-var">tempHandle</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MaybeT m (Text, Text) -&gt; m (Maybe (Text, Text))
+forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-93"></span><span>    </span><span class="hs-comment">-- Write the initial message to the temp file, if any</span><span>
+</span><span id="line-94"></span><span>    </span><span class="annot"><span class="annottext">IO () -&gt; MaybeT m ()
+forall a. IO a -&gt; MaybeT m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; MaybeT m ()) -&gt; IO () -&gt; MaybeT m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe Text -&gt; (Text -&gt; IO ()) -&gt; IO ()
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Foldable t, Applicative f) =&gt;
+t a -&gt; (a -&gt; f b) -&gt; f ()
+</span><span class="hs-identifier hs-var">for_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Text
+</span><a href="#local-6989586621681389118"><span class="hs-identifier hs-var">initialMessage</span></a></span><span> </span><span class="annot"><span class="annottext">((Text -&gt; IO ()) -&gt; IO ()) -&gt; (Text -&gt; IO ()) -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681389124"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389124"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Handle -&gt; Text -&gt; IO ()
+</span><span class="hs-identifier hs-var">Text.hPutStrLn</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621681389122"><span class="hs-identifier hs-var">tempHandle</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389124"><span class="hs-identifier hs-var">msg</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><span class="annottext">Handle -&gt; MaybeT m ()
+forall (m :: * -&gt; *). MonadIO m =&gt; Handle -&gt; m ()
+</span><span class="hs-identifier hs-var">UnliftIO.hClose</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621681389122"><span class="hs-identifier hs-var">tempHandle</span></a></span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-comment">-- Launch the editor on the temp file</span><span>
+</span><span id="line-97"></span><span>    </span><span class="annot"><span class="annottext">IO (Either SomeException ()) -&gt; MaybeT m (Either SomeException ())
+forall a. IO a -&gt; MaybeT m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IO () -&gt; IO (Either SomeException ())
+forall (m :: * -&gt; *) a.
+MonadUnliftIO m =&gt;
+m a -&gt; m (Either SomeException a)
+</span><span class="hs-identifier hs-var">UnliftIO.tryAny</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; IO ()
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; [String] -&gt; m ()
+</span><span class="hs-identifier hs-var">Proc.callProcess</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389119"><span class="hs-identifier hs-var">editorProg</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389121"><span class="hs-identifier hs-var">tempFilePath</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MaybeT m (Either SomeException ())
+-&gt; (Either SomeException () -&gt; MaybeT m ()) -&gt; MaybeT m ()
+forall a b. MaybeT m a -&gt; (a -&gt; MaybeT m b) -&gt; MaybeT m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-98"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="annottext">SomeException
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MaybeT m ()
+forall a. MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span><span>
+</span><span id="line-99"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; MaybeT m ()
+forall a. a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>    </span><span id="local-6989586621681389130"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389130"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Text -&gt; MaybeT m Text
+forall a. IO a -&gt; MaybeT m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; IO Text
+</span><span class="hs-identifier hs-var">readUtf8</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681389121"><span class="hs-identifier hs-var">tempFilePath</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681389132"><span class="annot"><span class="annottext">cleanedResult :: Text
+</span><a href="#local-6989586621681389132"><span class="hs-identifier hs-var hs-var">cleanedResult</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-102"></span><span>          </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389130"><span class="hs-identifier hs-var">result</span></a></span><span>
+</span><span id="line-103"></span><span>            </span><span class="annot"><span class="annottext">Text -&gt; (Text -&gt; [Text]) -&gt; [Text]
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text]
+</span><span class="hs-identifier hs-var">Text.lines</span></span><span>
+</span><span id="line-104"></span><span>            </span><span class="annot"><span class="annottext">[Text] -&gt; ([Text] -&gt; [Text]) -&gt; [Text]
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Bool) -&gt; [Text] -&gt; [Text]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (Text -&gt; Bool) -&gt; Text -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Bool
+</span><span class="hs-identifier hs-var">Text.isPrefixOf</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;--&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>            </span><span class="annot"><span class="annottext">[Text] -&gt; ([Text] -&gt; Text) -&gt; Text
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; Text
+</span><span class="hs-identifier hs-var">Text.unlines</span></span><span>
+</span><span id="line-106"></span><span>            </span><span class="annot"><span class="annottext">Text -&gt; (Text -&gt; Text) -&gt; Text
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span class="hs-identifier hs-var">Text.strip</span></span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; MaybeT m ()
+forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; MaybeT m ()) -&gt; Bool -&gt; MaybeT m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Bool
+</span><span class="hs-identifier hs-var">Text.null</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389132"><span class="hs-identifier hs-var">cleanedResult</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681389139"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389139"><span class="hs-identifier hs-var">subject</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681389140"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389140"><span class="hs-identifier hs-var">contents</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-109"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text]
+</span><span class="hs-identifier hs-var">Text.lines</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389132"><span class="hs-identifier hs-var">cleanedResult</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-110"></span><span>            </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621681389141"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389141"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681389142"><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681389142"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span class="hs-identifier hs-var">Text.strip</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389141"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span class="hs-identifier hs-var">Text.strip</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Text) -&gt; Text -&gt; Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; Text
+</span><span class="hs-identifier hs-var">Text.unlines</span></span><span> </span><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681389142"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><span class="annottext">(Text, Text) -&gt; MaybeT m (Text, Text)
+forall a. a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389139"><span class="hs-identifier hs-var">subject</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681389140"><span class="hs-identifier hs-var">contents</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span></pre></body></html>

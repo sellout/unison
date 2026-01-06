@@ -1,0 +1,403 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE Rank2Types #-}</span><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">{- | This module defines the basic libffi machinery.
+    You will need this to create support for new ffi types. -}</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Foreign.LibFFI.Base</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.Ptr</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.Storable</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.Marshal</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html"><span class="hs-identifier">Foreign.LibFFI.Internal</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.LibFFI.FFITypes.html"><span class="hs-identifier">Foreign.LibFFI.FFITypes</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">newtype</span><span> </span><span id="Arg"><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Arg"><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unArg"><span class="annot"><span class="annottext">Arg -&gt; forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a
+</span><a href="Foreign.LibFFI.Base.html#unArg"><span class="hs-identifier hs-var hs-var">unArg</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679040043"><span class="annot"><a href="#local-6989586621679040043"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CValue"><span class="hs-identifier hs-type">CValue</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679040043"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679040043"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span id="local-6989586621679040045"><span id="local-6989586621679040046"><span class="annot"><a href="Foreign.LibFFI.Base.html#customPointerArg"><span class="hs-identifier hs-type">customPointerArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679040045"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="#local-6989586621679040046"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="#local-6989586621679040046"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679040045"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span></span></span><span>
+</span><span id="line-18"></span><span id="customPointerArg"><span class="annot"><span class="annottext">customPointerArg :: forall a b. (a -&gt; IO (Ptr b)) -&gt; (Ptr b -&gt; IO ()) -&gt; a -&gt; Arg
+</span><a href="Foreign.LibFFI.Base.html#customPointerArg"><span class="hs-identifier hs-var hs-var">customPointerArg</span></a></span></span><span> </span><span id="local-6989586621679040166"><span class="annot"><span class="annottext">a -&gt; IO (Ptr b)
+</span><a href="#local-6989586621679040166"><span class="hs-identifier hs-var">newA</span></a></span></span><span> </span><span id="local-6989586621679040167"><span class="annot"><span class="annottext">Ptr b -&gt; IO ()
+</span><a href="#local-6989586621679040167"><span class="hs-identifier hs-var">freeA</span></a></span></span><span> </span><span id="local-6989586621679040168"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679040168"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg
+</span><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">((forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg)
+-&gt; (forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040170"><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO a
+</span><a href="#local-6989586621679040170"><span class="hs-identifier hs-var">withArg</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-19"></span><span>    </span><span class="annot"><span class="annottext">IO (Ptr b) -&gt; (Ptr b -&gt; IO ()) -&gt; (Ptr b -&gt; IO a) -&gt; IO a
+forall a b c. IO a -&gt; (a -&gt; IO b) -&gt; (a -&gt; IO c) -&gt; IO c
+</span><span class="hs-identifier hs-var">bracket</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; IO (Ptr b)
+</span><a href="#local-6989586621679040166"><span class="hs-identifier hs-var">newA</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679040168"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Ptr b -&gt; IO ()
+</span><a href="#local-6989586621679040167"><span class="hs-identifier hs-var">freeA</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr b -&gt; IO a) -&gt; IO a) -&gt; (Ptr b -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040172"><span class="annot"><span class="annottext">Ptr b
+</span><a href="#local-6989586621679040172"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-20"></span><span>        </span><span class="annot"><span class="annottext">Ptr b -&gt; (Ptr (Ptr b) -&gt; IO a) -&gt; IO a
+forall a b. Storable a =&gt; a -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">with</span></span><span> </span><span class="annot"><span class="annottext">Ptr b
+</span><a href="#local-6989586621679040172"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr (Ptr b) -&gt; IO a) -&gt; IO a) -&gt; (Ptr (Ptr b) -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040174"><span class="annot"><span class="annottext">Ptr (Ptr b)
+</span><a href="#local-6989586621679040174"><span class="hs-identifier hs-var">pp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-21"></span><span>            </span><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO a
+</span><a href="#local-6989586621679040170"><span class="hs-identifier hs-var">withArg</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="Foreign.LibFFI.FFITypes.html#ffi_type_pointer"><span class="hs-identifier hs-var">ffi_type_pointer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr (Ptr b) -&gt; Ptr CValue
+forall a b. Ptr a -&gt; Ptr b
+</span><span class="hs-identifier hs-var">castPtr</span></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr b)
+</span><a href="#local-6989586621679040174"><span class="hs-identifier hs-var">pp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span id="local-6989586621679040060"><span class="annot"><a href="Foreign.LibFFI.Base.html#mkStorableArg"><span class="hs-identifier hs-type">mkStorableArg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679040060"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679040060"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span></span><span>
+</span><span id="line-24"></span><span id="mkStorableArg"><span class="annot"><span class="annottext">mkStorableArg :: forall a. Storable a =&gt; Ptr CType -&gt; a -&gt; Arg
+</span><a href="Foreign.LibFFI.Base.html#mkStorableArg"><span class="hs-identifier hs-var hs-var">mkStorableArg</span></a></span></span><span> </span><span id="local-6989586621679040179"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040179"><span class="hs-identifier hs-var">cType</span></a></span></span><span> </span><span id="local-6989586621679040180"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679040180"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg
+</span><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">((forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg)
+-&gt; (forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a) -&gt; Arg
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040182"><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO a
+</span><a href="#local-6989586621679040182"><span class="hs-identifier hs-var">withArg</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="annottext">a -&gt; (Ptr a -&gt; IO a) -&gt; IO a
+forall a b. Storable a =&gt; a -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">with</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679040180"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr a -&gt; IO a) -&gt; IO a) -&gt; (Ptr a -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040183"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621679040183"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-26"></span><span>        </span><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO a
+</span><a href="#local-6989586621679040182"><span class="hs-identifier hs-var">withArg</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040179"><span class="hs-identifier hs-var">cType</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; Ptr CValue
+forall a b. Ptr a -&gt; Ptr b
+</span><span class="hs-identifier hs-var">castPtr</span></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621679040183"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">newtype</span><span> </span><span id="RetType"><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-var">RetType</span></a></span></span><span> </span><span id="local-6989586621679040063"><span class="annot"><a href="#local-6989586621679040063"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RetType"><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-var">RetType</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unRetType"><span class="annot"><span class="annottext">forall a. RetType a -&gt; (Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a
+</span><a href="Foreign.LibFFI.Base.html#unRetType"><span class="hs-identifier hs-var hs-var">unRetType</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CValue"><span class="hs-identifier hs-type">CValue</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679040063"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679040188"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>    </span><span id="local-6989586621679040193"><span class="annot"><span class="annottext">fmap :: forall a b. (a -&gt; b) -&gt; RetType a -&gt; RetType b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fmap</span></span></span><span> </span><span id="local-6989586621679040194"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679040194"><span class="hs-identifier hs-var">f</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; IO b) -&gt; RetType a -&gt; RetType b
+forall a b. (a -&gt; IO b) -&gt; RetType a -&gt; RetType b
+</span><a href="Foreign.LibFFI.Base.html#withRetType"><span class="hs-identifier hs-var">withRetType</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; IO b
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; IO b) -&gt; (a -&gt; b) -&gt; a -&gt; IO b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679040194"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span id="local-6989586621679040073"><span id="local-6989586621679040074"><span class="annot"><a href="Foreign.LibFFI.Base.html#withRetType"><span class="hs-identifier hs-type">withRetType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679040073"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679040074"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679040073"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679040074"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-34"></span><span id="withRetType"><span class="annot"><span class="annottext">withRetType :: forall a b. (a -&gt; IO b) -&gt; RetType a -&gt; RetType b
+</span><a href="Foreign.LibFFI.Base.html#withRetType"><span class="hs-identifier hs-var hs-var">withRetType</span></a></span></span><span> </span><span id="local-6989586621679040198"><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621679040198"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span id="local-6989586621679040199"><span class="annot"><span class="annottext">(Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a
+</span><a href="#local-6989586621679040199"><span class="hs-identifier hs-var">withPoke</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b) -&gt; RetType b
+forall a. ((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a) -&gt; RetType a
+</span><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-var">RetType</span></a></span><span> </span><span class="annot"><span class="annottext">(((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b) -&gt; RetType b)
+-&gt; ((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b) -&gt; RetType b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a
+</span><a href="#local-6989586621679040199"><span class="hs-identifier hs-var">withPoke</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a)
+-&gt; (a -&gt; IO b) -&gt; (Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b
+forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; m b) -&gt; (b -&gt; m c) -&gt; a -&gt; m c
+</span><span class="hs-operator hs-var">&gt;=&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621679040198"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span id="local-6989586621679040086"><span class="annot"><a href="Foreign.LibFFI.Base.html#mkStorableRetType"><span class="hs-identifier hs-type">mkStorableRetType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679040086"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679040086"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-37"></span><span id="mkStorableRetType"><span class="annot"><span class="annottext">mkStorableRetType :: forall a. Storable a =&gt; Ptr CType -&gt; RetType a
+</span><a href="Foreign.LibFFI.Base.html#mkStorableRetType"><span class="hs-identifier hs-var hs-var">mkStorableRetType</span></a></span></span><span> </span><span id="local-6989586621679040206"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040206"><span class="hs-identifier hs-var">cType</span></a></span></span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a) -&gt; RetType a
+forall a. ((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a) -&gt; RetType a
+</span><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-var">RetType</span></a></span><span> </span><span class="annot"><span class="annottext">(((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a) -&gt; RetType a)
+-&gt; ((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO a) -&gt; RetType a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040207"><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO ()
+</span><a href="#local-6989586621679040207"><span class="hs-identifier hs-var">write</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Ptr a -&gt; IO a) -&gt; IO a
+forall a b. Storable a =&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">alloca</span></span><span> </span><span class="annot"><span class="annottext">((Ptr a -&gt; IO a) -&gt; IO a) -&gt; (Ptr a -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040209"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621679040209"><span class="hs-identifier hs-var">cValue</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr CValue -&gt; IO ()
+</span><a href="#local-6989586621679040207"><span class="hs-identifier hs-var">write</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040206"><span class="hs-identifier hs-var">cType</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; Ptr CValue
+forall a b. Ptr a -&gt; Ptr b
+</span><span class="hs-identifier hs-var">castPtr</span></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621679040209"><span class="hs-identifier hs-var">cValue</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; IO a -&gt; IO a
+forall a b. IO a -&gt; IO b -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; IO a
+forall a. Storable a =&gt; Ptr a -&gt; IO a
+</span><span class="hs-identifier hs-var">peek</span></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621679040209"><span class="hs-identifier hs-var">cValue</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span id="local-6989586621679040093"><span class="annot"><a href="Foreign.LibFFI.Base.html#newStorableStructArgRet"><span class="hs-identifier hs-type">newStorableStructArgRet</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679040093"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679040093"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679040093"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
+</span><span id="line-41"></span><span id="newStorableStructArgRet"><span class="annot"><span class="annottext">newStorableStructArgRet :: forall a.
+Storable a =&gt;
+[Ptr CType] -&gt; IO (a -&gt; Arg, RetType a, IO ())
+</span><a href="Foreign.LibFFI.Base.html#newStorableStructArgRet"><span class="hs-identifier hs-var hs-var">newStorableStructArgRet</span></a></span></span><span> </span><span id="local-6989586621679040217"><span class="annot"><span class="annottext">[Ptr CType]
+</span><a href="#local-6989586621679040217"><span class="hs-identifier hs-var">cTypes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679040218"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040218"><span class="hs-identifier hs-var">cType</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679040219"><span class="annot"><span class="annottext">IO ()
+</span><a href="#local-6989586621679040219"><span class="hs-identifier hs-var">freeit</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Ptr CType] -&gt; IO (Ptr CType, IO ())
+</span><a href="Foreign.LibFFI.Base.html#newStructCType"><span class="hs-identifier hs-var">newStructCType</span></a></span><span> </span><span class="annot"><span class="annottext">[Ptr CType]
+</span><a href="#local-6989586621679040217"><span class="hs-identifier hs-var">cTypes</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="annottext">(a -&gt; Arg, RetType a, IO ()) -&gt; IO (a -&gt; Arg, RetType a, IO ())
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr CType -&gt; a -&gt; Arg
+forall a. Storable a =&gt; Ptr CType -&gt; a -&gt; Arg
+</span><a href="Foreign.LibFFI.Base.html#mkStorableArg"><span class="hs-identifier hs-var">mkStorableArg</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040218"><span class="hs-identifier hs-var">cType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; RetType a
+forall a. Storable a =&gt; Ptr CType -&gt; RetType a
+</span><a href="Foreign.LibFFI.Base.html#mkStorableRetType"><span class="hs-identifier hs-var">mkStorableRetType</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040218"><span class="hs-identifier hs-var">cType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">IO ()
+</span><a href="#local-6989586621679040219"><span class="hs-identifier hs-var">freeit</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Foreign.LibFFI.Base.html#newStructCType"><span class="hs-identifier hs-type">newStructCType</span></a></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span id="newStructCType"><span class="annot"><span class="annottext">newStructCType :: [Ptr CType] -&gt; IO (Ptr CType, IO ())
+</span><a href="Foreign.LibFFI.Base.html#newStructCType"><span class="hs-identifier hs-var hs-var">newStructCType</span></a></span></span><span> </span><span id="local-6989586621679040221"><span class="annot"><span class="annottext">[Ptr CType]
+</span><a href="#local-6989586621679040221"><span class="hs-identifier hs-var">cTypes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621679040222"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040222"><span class="hs-identifier hs-var">ffi_type</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (Ptr CType)
+forall a. Int -&gt; IO (Ptr a)
+</span><span class="hs-identifier hs-var">mallocBytes</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Foreign.LibFFI.Internal.html#sizeOf_ffi_type"><span class="hs-identifier hs-var">sizeOf_ffi_type</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span id="local-6989586621679040225"><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040225"><span class="hs-identifier hs-var">elements</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; [Ptr CType] -&gt; IO (Ptr (Ptr CType))
+forall a. Storable a =&gt; a -&gt; [a] -&gt; IO (Ptr a)
+</span><span class="hs-identifier hs-var">newArray0</span></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+forall a. Ptr a
+</span><span class="hs-identifier hs-var">nullPtr</span></span><span> </span><span class="annot"><span class="annottext">[Ptr CType]
+</span><a href="#local-6989586621679040221"><span class="hs-identifier hs-var">cTypes</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><span class="annottext">Ptr CType -&gt; Ptr (Ptr CType) -&gt; IO ()
+</span><a href="Foreign.LibFFI.Internal.html#init_ffi_type"><span class="hs-identifier hs-var">init_ffi_type</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040222"><span class="hs-identifier hs-var">ffi_type</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040225"><span class="hs-identifier hs-var">elements</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><span class="annottext">(Ptr CType, IO ()) -&gt; IO (Ptr CType, IO ())
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040222"><span class="hs-identifier hs-var">ffi_type</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; IO ()
+forall a. Ptr a -&gt; IO ()
+</span><span class="hs-identifier hs-var">free</span></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040222"><span class="hs-identifier hs-var">ffi_type</span></a></span><span> </span><span class="annot"><span class="annottext">IO () -&gt; IO () -&gt; IO ()
+forall a b. IO a -&gt; IO b -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType) -&gt; IO ()
+forall a. Ptr a -&gt; IO ()
+</span><span class="hs-identifier hs-var">free</span></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040225"><span class="hs-identifier hs-var">elements</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Foreign.LibFFI.Base.html#sizeAndAlignmentOfCType"><span class="hs-identifier hs-type">sizeAndAlignmentOfCType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ptr</span></span><span> </span><span class="annot"><a href="Foreign.LibFFI.Internal.html#CType"><span class="hs-identifier hs-type">CType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span id="sizeAndAlignmentOfCType"><span class="annot"><span class="annottext">sizeAndAlignmentOfCType :: Ptr CType -&gt; IO (Int, Int)
+</span><a href="Foreign.LibFFI.Base.html#sizeAndAlignmentOfCType"><span class="hs-identifier hs-var hs-var">sizeAndAlignmentOfCType</span></a></span></span><span> </span><span id="local-6989586621679040231"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040231"><span class="hs-identifier hs-var">cType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621679040232"><span class="annot"><span class="annottext">CSize
+</span><a href="#local-6989586621679040232"><span class="hs-identifier hs-var">size</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679040233"><span class="annot"><span class="annottext">CUShort
+</span><a href="#local-6989586621679040233"><span class="hs-identifier hs-var">alignment</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; IO (CSize, CUShort)
+</span><a href="Foreign.LibFFI.Internal.html#ffi_type_size_and_alignment"><span class="hs-identifier hs-var">ffi_type_size_and_alignment</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040231"><span class="hs-identifier hs-var">cType</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">CSize
+</span><a href="#local-6989586621679040232"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">CSize -&gt; CSize -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">CSize
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">CUShort
+</span><a href="#local-6989586621679040233"><span class="hs-identifier hs-var">alignment</span></a></span><span> </span><span class="annot"><span class="annottext">CUShort -&gt; CUShort -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">CUShort
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">(Int, Int) -&gt; IO (Int, Int)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CSize -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">CSize
+</span><a href="#local-6989586621679040232"><span class="hs-identifier hs-var">size</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CUShort -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">CUShort
+</span><a href="#local-6989586621679040233"><span class="hs-identifier hs-var">alignment</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-comment">-- The type's size and alignment haven't been initialized</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-comment">-- so we force it with a call to `ffi_prep_cif`.</span><span>
+</span><span id="line-60"></span><span>    </span><span id="local-6989586621679040237"><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="#local-6989586621679040237"><span class="hs-identifier hs-var">status</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; (Ptr CIF -&gt; IO C_ffi_status) -&gt; IO C_ffi_status
+forall a b. Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">allocaBytes</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Foreign.LibFFI.Internal.html#sizeOf_cif"><span class="hs-identifier hs-var">sizeOf_cif</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CIF -&gt; IO C_ffi_status) -&gt; IO C_ffi_status)
+-&gt; (Ptr CIF -&gt; IO C_ffi_status) -&gt; IO C_ffi_status
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040240"><span class="annot"><span class="annottext">Ptr CIF
+</span><a href="#local-6989586621679040240"><span class="hs-identifier hs-var">cif</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-61"></span><span>                </span><span class="annot"><span class="annottext">Ptr CIF
+-&gt; C_ffi_status
+-&gt; CUInt
+-&gt; Ptr CType
+-&gt; Ptr (Ptr CType)
+-&gt; IO C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_prep_cif"><span class="hs-identifier hs-var">ffi_prep_cif</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CIF
+</span><a href="#local-6989586621679040240"><span class="hs-identifier hs-var">cif</span></a></span><span> </span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_default_abi"><span class="hs-identifier hs-var">ffi_default_abi</span></a></span><span> </span><span class="annot"><span class="annottext">CUInt
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040231"><span class="hs-identifier hs-var">cType</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType)
+forall a. Ptr a
+</span><span class="hs-identifier hs-var">nullPtr</span></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; IO () -&gt; IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="#local-6989586621679040237"><span class="hs-identifier hs-var">status</span></a></span><span> </span><span class="annot"><span class="annottext">C_ffi_status -&gt; C_ffi_status -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_ok"><span class="hs-identifier hs-var">ffi_ok</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; IO ()) -&gt; IO () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-63"></span><span>      </span><span class="annot"><span class="annottext">[Char] -&gt; IO ()
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;sizeAndAlignmentOfCType: ffi_prep_cif failed&quot;</span></span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679040246"><span class="annot"><span class="annottext">CSize
+</span><a href="#local-6989586621679040246"><span class="hs-identifier hs-var">size</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679040247"><span class="annot"><span class="annottext">CUShort
+</span><a href="#local-6989586621679040247"><span class="hs-identifier hs-var">alignment</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CType -&gt; IO (CSize, CUShort)
+</span><a href="Foreign.LibFFI.Internal.html#ffi_type_size_and_alignment"><span class="hs-identifier hs-var">ffi_type_size_and_alignment</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040231"><span class="hs-identifier hs-var">cType</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><span class="annottext">(Int, Int) -&gt; IO (Int, Int)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CSize -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">CSize
+</span><a href="#local-6989586621679040246"><span class="hs-identifier hs-var">size</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CUShort -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">CUShort
+</span><a href="#local-6989586621679040247"><span class="hs-identifier hs-var">alignment</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span id="local-6989586621679040108"><span id="local-6989586621679040109"><span class="annot"><a href="Foreign.LibFFI.Base.html#callFFI"><span class="hs-identifier hs-type">callFFI</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FunPtr</span></span><span> </span><span class="annot"><a href="#local-6989586621679040108"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679040109"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679040109"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-68"></span><span id="callFFI"><span class="annot"><span class="annottext">callFFI :: forall a b. FunPtr a -&gt; RetType b -&gt; [Arg] -&gt; IO b
+</span><a href="Foreign.LibFFI.Base.html#callFFI"><span class="hs-identifier hs-var hs-var">callFFI</span></a></span></span><span> </span><span id="local-6989586621679040256"><span class="annot"><span class="annottext">FunPtr a
+</span><a href="#local-6989586621679040256"><span class="hs-identifier hs-var">funPtr</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Foreign.LibFFI.Base.html#RetType"><span class="hs-identifier hs-type">RetType</span></a></span><span> </span><span id="local-6989586621679040257"><span class="annot"><span class="annottext">(Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b
+</span><a href="#local-6989586621679040257"><span class="hs-identifier hs-var">actRet</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679040258"><span class="annot"><span class="annottext">[Arg]
+</span><a href="#local-6989586621679040258"><span class="hs-identifier hs-var">args</span></a></span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; (Ptr CIF -&gt; IO b) -&gt; IO b
+forall a b. Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">allocaBytes</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Foreign.LibFFI.Internal.html#sizeOf_cif"><span class="hs-identifier hs-var">sizeOf_cif</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CIF -&gt; IO b) -&gt; IO b) -&gt; (Ptr CIF -&gt; IO b) -&gt; IO b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040259"><span class="annot"><span class="annottext">Ptr CIF
+</span><a href="#local-6989586621679040259"><span class="hs-identifier hs-var">cif</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-70"></span><span>        </span><span class="annot"><span class="annottext">Int -&gt; (Ptr (Ptr CType) -&gt; IO b) -&gt; IO b
+forall a b. Storable a =&gt; Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">allocaArray</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040261"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr (Ptr CType) -&gt; IO b) -&gt; IO b)
+-&gt; (Ptr (Ptr CType) -&gt; IO b) -&gt; IO b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040262"><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040262"><span class="hs-identifier hs-var">cTypesPtr</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-71"></span><span>            </span><span class="annot"><span class="annottext">Int -&gt; (Ptr (Ptr CValue) -&gt; IO b) -&gt; IO b
+forall a b. Storable a =&gt; Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">allocaArray</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040261"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr (Ptr CValue) -&gt; IO b) -&gt; IO b)
+-&gt; (Ptr (Ptr CValue) -&gt; IO b) -&gt; IO b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040263"><span class="annot"><span class="annottext">Ptr (Ptr CValue)
+</span><a href="#local-6989586621679040263"><span class="hs-identifier hs-var">cValuesPtr</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-72"></span><span>                </span><span class="hs-keyword">let</span><span>
+</span><span id="line-73"></span><span>                    </span><span id="local-6989586621679040273"><span class="annot"><span class="annottext">doCall :: IO b
+</span><a href="#local-6989586621679040273"><span class="hs-identifier hs-var hs-var">doCall</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b
+</span><a href="#local-6989586621679040257"><span class="hs-identifier hs-var">actRet</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b)
+-&gt; (Ptr CType -&gt; Ptr CValue -&gt; IO ()) -&gt; IO b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040274"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040274"><span class="hs-identifier hs-var">cRetType</span></a></span></span><span> </span><span id="local-6989586621679040275"><span class="annot"><span class="annottext">Ptr CValue
+</span><a href="#local-6989586621679040275"><span class="hs-identifier hs-var">cRetValue</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-74"></span><span>                                </span><span id="local-6989586621679040276"><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="#local-6989586621679040276"><span class="hs-identifier hs-var">status</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CIF
+-&gt; C_ffi_status
+-&gt; CUInt
+-&gt; Ptr CType
+-&gt; Ptr (Ptr CType)
+-&gt; IO C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_prep_cif"><span class="hs-identifier hs-var">ffi_prep_cif</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CIF
+</span><a href="#local-6989586621679040259"><span class="hs-identifier hs-var">cif</span></a></span><span> </span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_default_abi"><span class="hs-identifier hs-var">ffi_default_abi</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; CUInt
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040261"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040274"><span class="hs-identifier hs-var">cRetType</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040262"><span class="hs-identifier hs-var">cTypesPtr</span></a></span><span>
+</span><span id="line-75"></span><span>                                </span><span class="annot"><span class="annottext">Bool -&gt; IO () -&gt; IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="#local-6989586621679040276"><span class="hs-identifier hs-var">status</span></a></span><span> </span><span class="annot"><span class="annottext">C_ffi_status -&gt; C_ffi_status -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">C_ffi_status
+</span><a href="Foreign.LibFFI.Internal.html#ffi_ok"><span class="hs-identifier hs-var">ffi_ok</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; IO ()) -&gt; IO () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-76"></span><span>                                    </span><span class="annot"><span class="annottext">[Char] -&gt; IO ()
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;callFFI: ffi_prep_cif failed&quot;</span></span><span>
+</span><span id="line-77"></span><span>                                </span><span class="annot"><span class="annottext">Ptr CIF -&gt; FunPtr a -&gt; Ptr CValue -&gt; Ptr (Ptr CValue) -&gt; IO ()
+forall a.
+Ptr CIF -&gt; FunPtr a -&gt; Ptr CValue -&gt; Ptr (Ptr CValue) -&gt; IO ()
+</span><a href="Foreign.LibFFI.Internal.html#ffi_call"><span class="hs-identifier hs-var">ffi_call</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CIF
+</span><a href="#local-6989586621679040259"><span class="hs-identifier hs-var">cif</span></a></span><span> </span><span class="annot"><span class="annottext">FunPtr a
+</span><a href="#local-6989586621679040256"><span class="hs-identifier hs-var">funPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CValue
+</span><a href="#local-6989586621679040275"><span class="hs-identifier hs-var">cRetValue</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CValue)
+</span><a href="#local-6989586621679040263"><span class="hs-identifier hs-var">cValuesPtr</span></a></span><span>
+</span><span id="line-78"></span><span>                    </span><span id="local-6989586621679040282"><span class="annot"><span class="annottext">addArg :: (Int, Arg) -&gt; IO a -&gt; IO a
+</span><a href="#local-6989586621679040282"><span class="hs-identifier hs-var hs-var">addArg</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679040283"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040283"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Foreign.LibFFI.Base.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span id="local-6989586621679040284"><span class="annot"><span class="annottext">forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a
+</span><a href="#local-6989586621679040284"><span class="hs-identifier hs-var">actArg</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679040285"><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679040285"><span class="hs-identifier hs-var">goArgs</span></a></span></span><span>
+</span><span id="line-79"></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a
+forall a. (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a
+</span><a href="#local-6989586621679040284"><span class="hs-identifier hs-var">actArg</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a)
+-&gt; (Ptr CType -&gt; Ptr CValue -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679040286"><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040286"><span class="hs-identifier hs-var">cType</span></a></span></span><span> </span><span id="local-6989586621679040287"><span class="annot"><span class="annottext">Ptr CValue
+</span><a href="#local-6989586621679040287"><span class="hs-identifier hs-var">cValue</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>                                </span><span class="annot"><span class="annottext">Ptr (Ptr CType) -&gt; Int -&gt; Ptr CType -&gt; IO ()
+forall a. Storable a =&gt; Ptr a -&gt; Int -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">pokeElemOff</span></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CType)
+</span><a href="#local-6989586621679040262"><span class="hs-identifier hs-var">cTypesPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040283"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CType
+</span><a href="#local-6989586621679040286"><span class="hs-identifier hs-var">cType</span></a></span><span>
+</span><span id="line-81"></span><span>                                </span><span class="annot"><span class="annottext">Ptr (Ptr CValue) -&gt; Int -&gt; Ptr CValue -&gt; IO ()
+forall a. Storable a =&gt; Ptr a -&gt; Int -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">pokeElemOff</span></span><span> </span><span class="annot"><span class="annottext">Ptr (Ptr CValue)
+</span><a href="#local-6989586621679040263"><span class="hs-identifier hs-var">cValuesPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679040283"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CValue
+</span><a href="#local-6989586621679040287"><span class="hs-identifier hs-var">cValue</span></a></span><span>
+</span><span id="line-82"></span><span>                                </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679040285"><span class="hs-identifier hs-var">goArgs</span></a></span><span>
+</span><span id="line-83"></span><span>                </span><span class="hs-keyword">in</span><span>
+</span><span id="line-84"></span><span>                    </span><span class="annot"><span class="annottext">((Int, Arg) -&gt; IO b -&gt; IO b) -&gt; IO b -&gt; [(Int, Arg)] -&gt; IO b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">(Int, Arg) -&gt; IO b -&gt; IO b
+forall {a}. (Int, Arg) -&gt; IO a -&gt; IO a
+</span><a href="#local-6989586621679040282"><span class="hs-identifier hs-var">addArg</span></a></span><span> </span><span class="annot"><span class="annottext">IO b
+</span><a href="#local-6989586621679040273"><span class="hs-identifier hs-var">doCall</span></a></span><span> </span><span class="annot"><span class="annottext">([(Int, Arg)] -&gt; IO b) -&gt; [(Int, Arg)] -&gt; IO b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; [Arg] -&gt; [(Int, Arg)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Arg]
+</span><a href="#local-6989586621679040258"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>        </span><span id="local-6989586621679040261"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679040261"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Arg] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Arg]
+</span><a href="#local-6989586621679040258"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-87"></span></pre></body></html>

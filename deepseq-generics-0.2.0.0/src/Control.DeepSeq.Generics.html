@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE BangPatterns, TypeOperators, FlexibleContexts #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module:  Control.DeepSeq.Generics</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright:   (c) 2012, Herbert Valerio Riedel</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License:     BSD-style (see the LICENSE file)</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Maintainer:  Herbert Valerio Riedel &lt;hvr@gnu.org&gt;</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Stability:   stable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Portability: GHC</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- __NOTE__: Starting with @deepseq-1.4.0.0@, 'NFData' gained support</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- for generic derivation via @DefaultSignatures@. The new default</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- 'rnf' method implementation is then equivalent to</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- instance NFData MyType where</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--   'rnf' = 'genericRnfV1'</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- See documentation of 'rnf' for more details on how to use the new</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- built-in 'Generic' support.</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.DeepSeq.Generics</span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnf"><span class="hs-identifier">genericRnf</span></a></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnfV1"><span class="hs-identifier">genericRnfV1</span></a></span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | &quot;GHC.Generics&quot;-based 'rnf' implementation</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- This provides a generic `rnf` implementation for one type at a</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- time. If the type of the value 'genericRnf' is asked to reduce to</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- NF contains values of other types, those types have to provide</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- 'NFData' instances. This also means that recursive types can only</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- be used with 'genericRnf' if a 'NFData' instance has been defined</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- as well (see examples below).</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- The typical usage for 'genericRnf' is for reducing boilerplate code</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- when defining 'NFData' instances for ordinary algebraic</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- datatypes. See the code below for some simple usage examples:</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- &gt; {-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- &gt; import Control.DeepSeq</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- &gt; import Control.DeepSeq.Generics (genericRnf)</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- &gt; import GHC.Generics</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- &gt; -- simple record</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- &gt; data Foo = Foo AccountId Name Address</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- &gt;          deriving Generic</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- &gt; type Address      = [String]</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- &gt; type Name         = String</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &gt; newtype AccountId = AccountId Int</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- &gt; instance NFData AccountId</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- &gt; instance NFData Foo where rnf = genericRnf</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- &gt; -- recursive list-like type</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- &gt; data N = Z | S N deriving Generic</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- &gt; instance NFData N where rnf = genericRnf</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- &gt; -- parametric &amp; recursive type</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- &gt; data Bar a = Bar0 | Bar1 a | Bar2 (Bar a)</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- &gt;            deriving Generic</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- &gt; instance NFData a =&gt; NFData (Bar a) where rnf = genericRnf</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- __NOTE__: The 'GNFData' type-class showing up in the type-signature is</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--           used internally and not exported.</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span id="local-6989586621679024846"><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnf"><span class="hs-identifier hs-type">genericRnf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679024846"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679024846"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679024846"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-77"></span><span id="genericRnf"><span class="annot"><span class="annottext">genericRnf :: forall a. (Generic a, GNFData (Rep a)) =&gt; a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#genericRnf"><span class="hs-identifier hs-var hs-var">genericRnf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; ()
+forall a. Rep a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">(Rep a Any -&gt; ()) -&gt; (a -&gt; Rep a Any) -&gt; a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Rep a Any
+forall x. a -&gt; Rep a x
+forall a x. Generic a =&gt; a -&gt; Rep a x
+</span><span class="hs-identifier hs-var">from</span></span><span>
+</span><span id="line-78"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnf"><span class="hs-pragma hs-type">genericRnf</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- | Hidden internal type-class</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- __NOTE__: the 'V1' instance is not provided for 'GNFData' in order to</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- trigger a compile-time error; see 'GNFDataV1' which defers this to</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- a runtime error.</span><span>
+</span><span id="line-85"></span><span class="hs-keyword">class</span><span> </span><span id="GNFData"><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-var">GNFData</span></a></span></span><span> </span><span id="local-6989586621679024850"><span class="annot"><a href="#local-6989586621679024850"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>    </span><span id="grnf_"><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-type">grnf_</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679024849"><span class="annot"><a href="#local-6989586621679024850"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024849"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-89"></span><span>    </span><span id="local-6989586621679024939"><span class="annot"><span class="annottext">grnf_ :: forall a. U1 a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnf_</span></a></span></span><span> </span><span class="annot"><span class="annottext">U1 a
+</span><span class="hs-identifier hs-var">U1</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024860"><span id="local-6989586621679024861"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621679024860"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679024861"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024860"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-92"></span><span>    </span><span id="local-6989586621679024945"><span class="annot"><span class="annottext">grnf_ :: forall a. K1 i a a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnf_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ()) -&gt; (K1 i a a -&gt; a) -&gt; K1 i a a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">K1 i a a -&gt; a
+forall k i c (p :: k). K1 i c p -&gt; c
+</span><span class="hs-identifier hs-var">unK1</span></span><span>
+</span><span id="line-93"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-pragma hs-type">grnf_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024872"><span id="local-6989586621679024873"><span id="local-6989586621679024874"><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024872"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679024873"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024874"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024872"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>    </span><span id="local-6989586621679024951"><span class="annot"><span class="annottext">grnf_ :: forall a. M1 i c a a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnf_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">(a a -&gt; ()) -&gt; (M1 i c a a -&gt; a a) -&gt; M1 i c a a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">M1 i c a a -&gt; a a
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). M1 i c f p -&gt; f p
+</span><span class="hs-identifier hs-var">unM1</span></span><span>
+</span><span id="line-97"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-pragma hs-type">grnf_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024883"><span id="local-6989586621679024884"><span class="hs-special">(</span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024883"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024884"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679024883"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679024884"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-100"></span><span>    </span><span id="local-6989586621679024959"><span class="annot"><span class="annottext">grnf_ :: forall a. (:*:) a b a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnf_</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679024960"><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679024960"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679024962"><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679024962"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679024960"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">b a -&gt; ()
+forall a. b a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679024962"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-pragma hs-type">grnf_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024891"><span id="local-6989586621679024892"><span class="hs-special">(</span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024891"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024892"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFData"><span class="hs-identifier hs-type">GNFData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679024891"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679024892"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span>    </span><span id="local-6989586621679024969"><span class="annot"><span class="annottext">grnf_ :: forall a. (:+:) a b a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnf_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679024971"><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679024971"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679024971"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679024973"><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679024973"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b a -&gt; ()
+forall a. b a -&gt; ()
+forall (f :: * -&gt; *) a. GNFData f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-identifier hs-var">grnf_</span></a></span><span> </span><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679024973"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnf_"><span class="hs-pragma hs-type">grnf_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- | Variant of 'genericRnf' which supports derivation for uninhabited types.</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- For instance, the type</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- &gt; data TagFoo deriving Generic</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- would cause a compile-time error with 'genericRnf', but with</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- 'genericRnfV1' the error is deferred to run-time:</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- &gt; Prelude&gt; genericRnf (undefined :: TagFoo)</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- &gt; &lt;interactive&gt;:1:1:</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- &gt;     No instance for (GNFData V1) arising from a use of `genericRnf'</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- &gt;     Possible fix: add an instance declaration for (GNFData V1)</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- &gt;     In the expression: genericRnf (undefined :: TagFoo)</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- &gt;     In an equation for `it': it = genericRnf (undefined :: TagFoo)</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- &gt; Prelude&gt; genericRnfV1 (undefined :: TagFoo)</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- &gt; *** Exception: Control.DeepSeq.Generics.genericRnfV1: uninhabited type</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- 'genericRnfV1' corresponds to @deepseq-1.4.0.0@'s default @rnf@</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- method implementation.</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- __NOTE__: The 'GNFDataV1' type-class showing up in the type-signature is</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--           used internally and not exported.</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- @since 0.1.1.0</span><span>
+</span><span id="line-135"></span><span id="local-6989586621679024894"><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnfV1"><span class="hs-identifier hs-type">genericRnfV1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679024894"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679024894"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679024894"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-136"></span><span id="genericRnfV1"><span class="annot"><span class="annottext">genericRnfV1 :: forall a. (Generic a, GNFDataV1 (Rep a)) =&gt; a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#genericRnfV1"><span class="hs-identifier hs-var hs-var">genericRnfV1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; ()
+forall a. Rep a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">(Rep a Any -&gt; ()) -&gt; (a -&gt; Rep a Any) -&gt; a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Rep a Any
+forall x. a -&gt; Rep a x
+forall a x. Generic a =&gt; a -&gt; Rep a x
+</span><span class="hs-identifier hs-var">from</span></span><span>
+</span><span id="line-137"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#genericRnfV1"><span class="hs-pragma hs-type">genericRnfV1</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="annot"><span class="hs-comment">-- | Variant of 'GNFData' supporting 'V1'</span></span><span>
+</span><span id="line-140"></span><span class="hs-keyword">class</span><span> </span><span id="GNFDataV1"><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-var">GNFDataV1</span></a></span></span><span> </span><span id="local-6989586621679024898"><span class="annot"><a href="#local-6989586621679024898"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>    </span><span id="grnfV1_"><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-type">grnfV1_</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679024897"><span class="annot"><a href="#local-6989586621679024898"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024897"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-144"></span><span>    </span><span id="local-6989586621679024984"><span class="annot"><span class="annottext">grnfV1_ :: forall a. V1 a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; V1 a -&gt; ()
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Control.DeepSeq.Generics.genericRnfV1: uninhabited type&quot;</span></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-147"></span><span>    </span><span id="local-6989586621679024988"><span class="annot"><span class="annottext">grnfV1_ :: forall a. U1 a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="annot"><span class="annottext">U1 a
+</span><span class="hs-identifier hs-var">U1</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024906"><span id="local-6989586621679024907"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621679024906"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679024907"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024906"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-150"></span><span>    </span><span id="local-6989586621679024993"><span class="annot"><span class="annottext">grnfV1_ :: forall a. K1 i a a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ()) -&gt; (K1 i a a -&gt; a) -&gt; K1 i a a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">K1 i a a -&gt; a
+forall k i c (p :: k). K1 i c p -&gt; c
+</span><span class="hs-identifier hs-var">unK1</span></span><span>
+</span><span id="line-151"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-pragma hs-type">grnfV1_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024912"><span id="local-6989586621679024913"><span id="local-6989586621679024914"><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024912"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679024913"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024914"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024912"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-154"></span><span>    </span><span id="local-6989586621679024998"><span class="annot"><span class="annottext">grnfV1_ :: forall a. M1 i c a a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">(a a -&gt; ()) -&gt; (M1 i c a a -&gt; a a) -&gt; M1 i c a a -&gt; ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">M1 i c a a -&gt; a a
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). M1 i c f p -&gt; f p
+</span><span class="hs-identifier hs-var">unM1</span></span><span>
+</span><span id="line-155"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-pragma hs-type">grnfV1_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024918"><span id="local-6989586621679024919"><span class="hs-special">(</span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024918"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024919"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679024918"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679024919"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>    </span><span id="local-6989586621679025005"><span class="annot"><span class="annottext">grnfV1_ :: forall a. (:*:) a b a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679025006"><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679025006"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679025007"><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679025007"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679025006"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">b a -&gt; ()
+forall a. b a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679025007"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-159"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-pragma hs-type">grnfV1_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679024923"><span id="local-6989586621679024924"><span class="hs-special">(</span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024923"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679024924"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#GNFDataV1"><span class="hs-identifier hs-type">GNFDataV1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679024923"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679024924"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-162"></span><span>    </span><span id="local-6989586621679025014"><span class="annot"><span class="annottext">grnfV1_ :: forall a. (:+:) a b a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var hs-var hs-var hs-var">grnfV1_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679025015"><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679025015"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a a -&gt; ()
+forall a. a a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">a a
+</span><a href="#local-6989586621679025015"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679025016"><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679025016"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b a -&gt; ()
+forall a. b a -&gt; ()
+forall (f :: * -&gt; *) a. GNFDataV1 f =&gt; f a -&gt; ()
+</span><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-identifier hs-var">grnfV1_</span></a></span><span> </span><span class="annot"><span class="annottext">b a
+</span><a href="#local-6989586621679025016"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-164"></span><span>    </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Control.DeepSeq.Generics.html#grnfV1_"><span class="hs-pragma hs-type">grnfV1_</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-165"></span></pre></body></html>
